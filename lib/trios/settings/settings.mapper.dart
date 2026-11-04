@@ -957,6 +957,27 @@ class SettingsMapper extends ClassMapperBase<Settings> {
     opt: true,
     def: false,
   );
+  static bool _$saveSyncEnabled(Settings v) => v.saveSyncEnabled;
+  static const Field<Settings, bool> _f$saveSyncEnabled = Field(
+    'saveSyncEnabled',
+    _$saveSyncEnabled,
+    opt: true,
+    def: false,
+  );
+  static Directory? _$saveSyncFolder(Settings v) => v.saveSyncFolder;
+  static const Field<Settings, Directory> _f$saveSyncFolder = Field(
+    'saveSyncFolder',
+    _$saveSyncFolder,
+    opt: true,
+    hook: DirectoryHook(),
+  );
+  static List<String> _$saveSyncSaveNames(Settings v) => v.saveSyncSaveNames;
+  static const Field<Settings, List<String>> _f$saveSyncSaveNames = Field(
+    'saveSyncSaveNames',
+    _$saveSyncSaveNames,
+    opt: true,
+    def: const [],
+  );
   static bool _$catalogBrowserPanelOpen(Settings v) =>
       v.catalogBrowserPanelOpen;
   static const Field<Settings, bool> _f$catalogBrowserPanelOpen = Field(
@@ -1305,6 +1326,9 @@ class SettingsMapper extends ClassMapperBase<Settings> {
     #hasHiddenForumDarkModeTip: _f$hasHiddenForumDarkModeTip,
     #enableAiFeatures: _f$enableAiFeatures,
     #onlyEnabledMods: _f$onlyEnabledMods,
+    #saveSyncEnabled: _f$saveSyncEnabled,
+    #saveSyncFolder: _f$saveSyncFolder,
+    #saveSyncSaveNames: _f$saveSyncSaveNames,
     #catalogBrowserPanelOpen: _f$catalogBrowserPanelOpen,
     #catalogBrowserPanelWidth: _f$catalogBrowserPanelWidth,
     #catalogCardClickAction: _f$catalogCardClickAction,
@@ -1429,6 +1453,9 @@ class SettingsMapper extends ClassMapperBase<Settings> {
       hasHiddenForumDarkModeTip: data.dec(_f$hasHiddenForumDarkModeTip),
       enableAiFeatures: data.dec(_f$enableAiFeatures),
       onlyEnabledMods: data.dec(_f$onlyEnabledMods),
+      saveSyncEnabled: data.dec(_f$saveSyncEnabled),
+      saveSyncFolder: data.dec(_f$saveSyncFolder),
+      saveSyncSaveNames: data.dec(_f$saveSyncSaveNames),
       catalogBrowserPanelOpen: data.dec(_f$catalogBrowserPanelOpen),
       catalogBrowserPanelWidth: data.dec(_f$catalogBrowserPanelWidth),
       catalogCardClickAction: data.dec(_f$catalogCardClickAction),
@@ -1593,6 +1620,8 @@ abstract class SettingsCopyWith<$R, $In extends Settings, $Out>
     PersistedFilterGroupCopyWith<$R, PersistedFilterGroup, PersistedFilterGroup>
   >
   get persistedFilterGroups;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get saveSyncSaveNames;
   CatalogPageStatePersistedCopyWith<
     $R,
     CatalogPageStatePersisted,
@@ -1692,6 +1721,9 @@ abstract class SettingsCopyWith<$R, $In extends Settings, $Out>
     bool? hasHiddenForumDarkModeTip,
     bool? enableAiFeatures,
     bool? onlyEnabledMods,
+    bool? saveSyncEnabled,
+    Directory? saveSyncFolder,
+    List<String>? saveSyncSaveNames,
     bool? catalogBrowserPanelOpen,
     double? catalogBrowserPanelWidth,
     CatalogCardClickAction? catalogCardClickAction,
@@ -1862,6 +1894,13 @@ class _SettingsCopyWithImpl<$R, $Out>
     (v) => call(persistedFilterGroups: v),
   );
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get saveSyncSaveNames => ListCopyWith(
+    $value.saveSyncSaveNames,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(saveSyncSaveNames: v),
+  );
+  @override
   CatalogPageStatePersistedCopyWith<
     $R,
     CatalogPageStatePersisted,
@@ -1996,6 +2035,9 @@ class _SettingsCopyWithImpl<$R, $Out>
     Object? hasHiddenForumDarkModeTip = $none,
     bool? enableAiFeatures,
     bool? onlyEnabledMods,
+    bool? saveSyncEnabled,
+    Object? saveSyncFolder = $none,
+    List<String>? saveSyncSaveNames,
     bool? catalogBrowserPanelOpen,
     Object? catalogBrowserPanelWidth = $none,
     CatalogCardClickAction? catalogCardClickAction,
@@ -2134,6 +2176,9 @@ class _SettingsCopyWithImpl<$R, $Out>
         #hasHiddenForumDarkModeTip: hasHiddenForumDarkModeTip,
       if (enableAiFeatures != null) #enableAiFeatures: enableAiFeatures,
       if (onlyEnabledMods != null) #onlyEnabledMods: onlyEnabledMods,
+      if (saveSyncEnabled != null) #saveSyncEnabled: saveSyncEnabled,
+      if (saveSyncFolder != $none) #saveSyncFolder: saveSyncFolder,
+      if (saveSyncSaveNames != null) #saveSyncSaveNames: saveSyncSaveNames,
       if (catalogBrowserPanelOpen != null)
         #catalogBrowserPanelOpen: catalogBrowserPanelOpen,
       if (catalogBrowserPanelWidth != $none)
@@ -2392,6 +2437,12 @@ class _SettingsCopyWithImpl<$R, $Out>
     ),
     enableAiFeatures: data.get(#enableAiFeatures, or: $value.enableAiFeatures),
     onlyEnabledMods: data.get(#onlyEnabledMods, or: $value.onlyEnabledMods),
+    saveSyncEnabled: data.get(#saveSyncEnabled, or: $value.saveSyncEnabled),
+    saveSyncFolder: data.get(#saveSyncFolder, or: $value.saveSyncFolder),
+    saveSyncSaveNames: data.get(
+      #saveSyncSaveNames,
+      or: $value.saveSyncSaveNames,
+    ),
     catalogBrowserPanelOpen: data.get(
       #catalogBrowserPanelOpen,
       or: $value.catalogBrowserPanelOpen,

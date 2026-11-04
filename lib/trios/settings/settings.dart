@@ -168,6 +168,17 @@ class Settings with SettingsMappable {
   /// weapon twice.
   final bool onlyEnabledMods;
 
+  // Save sync. Per-save sync records live in `trios_save_sync_state-v1.json`,
+  // not here, because they change on every sync.
+  final bool saveSyncEnabled;
+
+  /// Folder kept in sync between PCs by a cloud client (SeaDrive, Dropbox, ...).
+  @MappableField(hook: DirectoryHook())
+  final Directory? saveSyncFolder;
+
+  /// Save folder names (e.g. `save_foo_123`) the user chose to sync.
+  final List<String> saveSyncSaveNames;
+
   // Catalog page — collapsible browser panel and card-click action
   final bool catalogBrowserPanelOpen;
   final double? catalogBrowserPanelWidth;
@@ -340,6 +351,9 @@ class Settings with SettingsMappable {
     this.hasHiddenForumDarkModeTip,
     this.enableAiFeatures = true,
     this.onlyEnabledMods = false,
+    this.saveSyncEnabled = false,
+    this.saveSyncFolder,
+    this.saveSyncSaveNames = const [],
     this.catalogBrowserPanelOpen = false,
     this.catalogBrowserPanelWidth,
     this.catalogCardClickAction = CatalogCardClickAction.forumDialog,
