@@ -90,6 +90,14 @@ New, under `lib/save_sync/`:
 
 Changed: `settings.dart` (+ generated mapper), `settings_page.dart`, `launcher.dart`, `app_state.dart`, `CONTEXT.md` (glossary terms).
 
+### 15. Changes made during implementation
+- Extraction refuses a zip with no top-level `descriptor.xml`. The `archive` package returns an empty archive for some damaged files instead of throwing, which would otherwise replace a save with an empty folder.
+- `SaveSyncEngine` (`save_sync_engine.dart`) holds the sync steps with no UI or Riverpod, so they can be tested with two simulated PCs. `SaveSyncNotifier` (`save_sync_manager.dart`) decides when to run them and shows the dialogs.
+- `readSave` in `save_reader.dart` now delegates to a top-level `readSaveFolder`, so save sync can read a `descriptor.xml` without the Mod Profiles notifier.
+- `AppShell` listens to `saveSyncProvider` so the notifier exists from startup. It listens rather than watches, so status changes don't rebuild the shell.
+- If a launch doesn't start the game within 3 minutes (for example the launch precheck was cancelled), the sync session closes and the lock is removed.
+- The settings group has a "Check again" button that re-reads both sides without changing anything.
+
 ## Risks / Trade-offs
 
 - **Cloud client delay** → The other PC may not have the latest zip yet. The lock warning and the "waiting for cloud client" status make this visible. TriOS cannot know what the server has.

@@ -49,3 +49,21 @@ _Avoid_: Manual link, user link, custom source
 **Frozen column**:
 A column the user has told a grid to keep in view while the other columns scroll sideways. Frozen columns always sit leftmost, keeping their order relative to each other. Named after Excel's "freeze panes".
 _Avoid_: Pinned column (pinning is the grids' word for rows held at the top), sticky column, locked column
+
+## Save sync
+
+**Save sync**:
+Opt-in copying of chosen Starsector saves between PCs through a folder that a cloud client keeps the same on every PC. TriOS writes and reads the folder; the cloud client does the uploading.
+_Avoid_: Cloud saves, save backup, save upload
+
+**Sync folder**:
+The folder save sync reads from and writes to. Kept in sync by something other than TriOS (SeaDrive, Dropbox, OneDrive, Google Drive, Syncthing). Its path can differ between PCs.
+_Avoid_: Cloud folder, remote, sync target
+
+**Sync session**:
+The time from launching the game until TriOS has written its changed saves after the game closes. While a session is open, this PC's lock file sits in the sync folder.
+_Avoid_: Play session, sync lock (the lock is the file, not the session)
+
+**Sync record**:
+What this PC remembers about a save from its last successful sync: the content hash both copies had then, and the manifest. Used to tell which side changed.
+_Avoid_: Sync state, last-sync cache
