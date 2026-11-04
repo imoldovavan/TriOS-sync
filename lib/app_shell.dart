@@ -14,6 +14,7 @@ import 'package:trios/hullmod_viewer/hullmods_page.dart';
 import 'package:trios/mod_manager/mods_grid_page.dart';
 import 'package:trios/mod_records/mod_records_store.dart';
 import 'package:trios/portraits/portraits_page.dart';
+import 'package:trios/save_sync/save_sync_manager.dart';
 import 'package:trios/sector_map/sector_map_page.dart';
 import 'package:trios/ship_viewer/ships_page.dart';
 import 'package:trios/thirdparty/flutter_context_menu/core/utils/extensions.dart';
@@ -262,6 +263,11 @@ class _AppShellState extends ConsumerState<AppShell>
     // Eagerly initialize mod records (and its dependency, the catalog) so data
     // is available for the mod-info dialog even before the Catalog page is opened.
     ref.watch(modRecordsStore);
+
+    // Keep save sync alive from startup so it notices the game starting or
+    // closing, and a session left open when TriOS last closed. Listen rather
+    // than watch: its status changes often and shouldn't rebuild the shell.
+    ref.listen(saveSyncProvider, (_, _) {});
 
     ref.listen(appSettings.select((s) => s.windowScaleFactor), (_, newValue) {
       ScaledWidgetsFlutterBinding.instance.scaleFactor = (_) => newValue;
