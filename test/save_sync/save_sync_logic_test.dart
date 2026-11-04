@@ -7,7 +7,11 @@ import 'package:trios/save_sync/save_sync_names.dart';
 void main() {
   group("decideSaveSync", () {
     SaveSyncDecision decide(String? local, String? remote, String? record) =>
-        decideSaveSync(localHash: local, remoteHash: remote, recordHash: record);
+        decideSaveSync(
+          localHash: local,
+          remoteHash: remote,
+          recordHash: record,
+        );
 
     test("nothing anywhere", () {
       expect(decide(null, null, null), SaveSyncDecision.notFound);
@@ -101,10 +105,7 @@ void main() {
         checkSaveFolderName("save_a:b"),
         SaveNameProblem.invalidCharacters,
       );
-      expect(
-        checkSaveFolderName("save_a?"),
-        SaveNameProblem.invalidCharacters,
-      );
+      expect(checkSaveFolderName("save_a?"), SaveNameProblem.invalidCharacters);
       expect(
         checkSaveFolderName("save_a\u0001"),
         SaveNameProblem.invalidCharacters,
@@ -123,10 +124,10 @@ void main() {
     });
 
     test("case clashes", () {
-      expect(
-        findCaseClashes(["save_Foo_1", "save_foo_1", "save_bar_2"]),
-        {"save_Foo_1", "save_foo_1"},
-      );
+      expect(findCaseClashes(["save_Foo_1", "save_foo_1", "save_bar_2"]), {
+        "save_Foo_1",
+        "save_foo_1",
+      });
       // The same name twice (e.g. local and remote) is not a clash.
       expect(findCaseClashes(["save_foo_1", "save_foo_1"]), isEmpty);
     });
