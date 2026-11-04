@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:toastification/toastification.dart';
 import 'package:trios/companion_mod/companion_mod_manager.dart';
 import 'package:trios/mod_manager/mod_manager_logic.dart';
+import 'package:trios/save_sync/save_sync_settings_section.dart';
 import 'package:trios/thirdparty/dartx/iterable.dart';
 import 'package:trios/trios/deep_link/protocol_registration.dart';
 import 'package:trios/trios/settings/app_settings_logic.dart';
@@ -131,6 +132,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 SettingsGroup(
                   name: "Starsector",
                   children: [GamePathsWidget()],
+                ),
+                const SettingsGroup(
+                  name: "Save Sync",
+                  children: [SaveSyncSettingsSection()],
                 ),
                 SettingsGroup(
                   name: "${Constants.appName} Updates",
