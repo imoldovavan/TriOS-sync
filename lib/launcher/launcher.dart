@@ -12,6 +12,7 @@ import 'package:plist_parser/plist_parser.dart';
 import 'package:trios/mod_manager/mod_manager_logic.dart';
 import 'package:trios/models/launch_settings.dart';
 import 'package:trios/models/mod_variant.dart';
+import 'package:trios/save_sync/save_sync_manager.dart';
 import 'package:trios/thirdparty/dartx/io/file_system_entity.dart';
 import 'package:trios/trios/app_state.dart';
 import 'package:trios/trios/constants.dart';
@@ -265,6 +266,12 @@ class LauncherButton extends HookConsumerWidget {
 
   /// Can throw exception
   static launchGame(WidgetRef ref, BuildContext context) async {
+    // Does nothing unless save sync is turned on.
+    final saveSyncAllowsLaunch = await ref
+        .read(saveSyncProvider.notifier)
+        .prepareForLaunch(context);
+    if (!saveSyncAllowsLaunch || !context.mounted) return;
+
     final launchPrecheckFailures = performLaunchPrecheck(ref);
     final enableLauncherPrecheck = ref.read(
       appSettings.select((value) => value.enableLauncherPrecheck),
