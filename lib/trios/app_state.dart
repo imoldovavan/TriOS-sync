@@ -442,6 +442,14 @@ class AppState {
         _GameRunningChecker.new,
       );
 
+  /// When true, the game-running check keeps checking (every
+  /// [_GameRunningChecker.unfocusedPeriod]) while TriOS is in the background.
+  /// Save sync sets this while a sync session is open, so it notices the game
+  /// closing without TriOS being focused.
+  static final keepCheckingGameWhileUnfocused = StateProvider<bool>(
+    (ref) => false,
+  );
+
   static final processDetectionDiagnostics =
       StateProvider<ProcessDetectionDiagnostics?>((ref) => null);
 
@@ -450,7 +458,9 @@ class AppState {
 
 class _GameRunningChecker extends AsyncNotifier<Result> {
   static const int period = 1500;
+  static const unfocusedPeriod = Duration(seconds: 5);
   int _generation = 0;
+  DateTime? _lastCheckAt;
   late List<ProcessDetector> _detectors;
   String? _lastMatchedDetectorName;
   List<String> _lastUsedDetectorNames = [];
@@ -567,7 +577,15 @@ class _GameRunningChecker extends AsyncNotifier<Result> {
     while (_generation == gen) {
       await Future.delayed(const Duration(milliseconds: period));
       if (_generation != gen) break;
-      if (!ref.read(AppState.isWindowFocused)) continue;
+      if (!ref.read(AppState.isWindowFocused)) {
+        if (!ref.read(AppState.keepCheckingGameWhileUnfocused)) continue;
+        final lastCheckAt = _lastCheckAt;
+        if (lastCheckAt != null &&
+            DateTime.now().difference(lastCheckAt) < unfocusedPeriod) {
+          continue;
+        }
+      }
+      _lastCheckAt = DateTime.now();
 
       final stopwatch = Stopwatch()..start();
       final result = await _runDetectors(executableNames);
