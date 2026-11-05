@@ -62,3 +62,10 @@ Each numbered section is one commit.
 - [x] 9.2 "Pull and switch mods" saves a "Save sync: <character>" profile and activates it (`activateModProfile` gets `reapplyIfActive`)
 - [x] 9.3 Ask which save's mods to use when several were chosen; report mods that didn't switch as an error
 - [x] 9.4 Manual test plan steps 1.26–1.29 (the notifier's dialog flows have no automated tests, same as 5.6)
+
+## 10. Saves folder must match the game's vmparams
+
+- [x] 10.1 `saves_folder_check.dart`: read and resolve the vmparams saves path, compare with TriOS's saves folder
+- [x] 10.2 Pause save sync while they differ; block launch with "Launch anyway" / "Cancel"
+- [x] 10.3 Settings warning with both paths and "Use the game's saves folder"
+- [x] 10.4 Tests for reading and resolving the path; manual test plan steps 1.30–1.32

@@ -124,6 +124,25 @@ TriOS SHALL recognize conflict copies made by cloud clients in the sync folder: 
 - **WHEN** `saves/save_foo_123.manifest (SFConflict ionut 2026-11-04-15-20-00).json` exists
 - **THEN** save `save_foo_123` shows status "Cloud conflict copy found", sync for that save pauses, and the settings group offers "Move conflict copies to backups"
 
+### Requirement: Saves folder matches the game
+TriOS SHALL read `-Dcom.fs.starfarer.settings.paths.saves` from the vmparams file TriOS launches with, resolving a relative path against the game core folder. If it points to a different folder than the saves folder TriOS reads, save sync SHALL pause and SHALL not read or write any save.
+
+#### Scenario: vmparams moves the saves folder
+- **WHEN** vmparams sets the saves path to `D:\StarsectorSaves` and TriOS reads `<game folder>/saves`
+- **THEN** the Save Sync group shows both paths and a "Use the game's saves folder" button, and the save list and sync buttons are hidden
+
+#### Scenario: Use the game's saves folder
+- **WHEN** the user clicks "Use the game's saves folder"
+- **THEN** TriOS turns on its custom saves folder setting with the vmparams path, and save sync resumes
+
+#### Scenario: Launch while the folders differ
+- **WHEN** the user launches from TriOS while the folders differ
+- **THEN** TriOS shows the message with "Launch anyway" and "Cancel"; "Launch anyway" starts the game without syncing, writing a lock, or pushing after exit
+
+#### Scenario: vmparams sets no saves path
+- **WHEN** vmparams has no saves path, or can't be read
+- **THEN** save sync uses TriOS's saves folder as before
+
 ### Requirement: Mod check before pull
 Before replacing a local save with a synced one, TriOS SHALL compare the manifest's mod list with the mods enabled on this PC using `ModProfileManagerNotifier.computeModProfileChanges`, the same way Mod Profiles compares a profile.
 
@@ -133,7 +152,7 @@ Before replacing a local save with a synced one, TriOS SHALL compare the manifes
 
 #### Scenario: Switch mods to match
 - **WHEN** at least one difference can be fixed with installed mods and the user chooses "Pull and switch mods"
-- **THEN** after the pull, TriOS stores the save's mod list in a mod profile named "Save sync: <character name>" (creating it, or replacing the list of an existing one with that name), switches to that profile the same way the Mod Profiles page does, and leaves the user's previous profile unchanged
+- **THEN** after the pull, TriOS stores the save's mod list in a mod profile named `Save sync: <character name>` (creating it, or replacing the list of an existing one with that name), switches to that profile the same way the Mod Profiles page does, and leaves the user's previous profile unchanged
 - **AND** mods that are not installed are skipped and stay listed in the dialog
 
 #### Scenario: Several saves want their mods

@@ -14,6 +14,7 @@ import 'package:trios/save_sync/save_sync_backend.dart';
 import 'package:trios/save_sync/save_sync_backups.dart';
 import 'package:trios/save_sync/save_sync_dialogs.dart';
 import 'package:trios/save_sync/save_sync_engine.dart';
+import 'package:trios/save_sync/saves_folder_check.dart';
 import 'package:trios/trios/app_state.dart';
 import 'package:trios/trios/constants.dart';
 import 'package:trios/trios/settings/app_settings_logic.dart';
@@ -99,11 +100,17 @@ class SaveSyncStatus {
     this.lastMessage,
     this.lastRunAt,
     this.isSessionOpen = false,
+    this.savesFolderMismatch,
   });
 
-  /// False when sync is off or can't run (no folder, no saves folder).
+  /// False when sync is off or can't run (no folder, no saves folder, or
+  /// TriOS and the game use different saves folders).
   final bool isActive;
   final String? inactiveReason;
+
+  /// Set when the game's vmparams point to a different saves folder than the
+  /// one TriOS reads. Sync is paused until they match.
+  final SavesFolderMismatch? savesFolderMismatch;
   final SaveSyncOverview? overview;
 
   /// Set while a sync step is running.
@@ -133,6 +140,7 @@ class SaveSyncStatus {
     lastMessage: lastMessage != null ? lastMessage() : this.lastMessage,
     lastRunAt: lastRunAt ?? this.lastRunAt,
     isSessionOpen: isSessionOpen ?? this.isSessionOpen,
+    savesFolderMismatch: savesFolderMismatch,
   );
 }
 
@@ -213,6 +221,21 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
             'Set the game folder in the Starsector section above.',
       );
     }
+    final mismatch = ref.watch(savesFolderMismatchProvider);
+    if (!mismatch.hasValue && !mismatch.hasError) {
+      // Don't touch any saves until we know TriOS reads the game's folder.
+      return const SaveSyncStatus(
+        isActive: false,
+        inactiveReason: 'Checking the saves folder...',
+      );
+    }
+    if (mismatch.value case final mismatch?) {
+      return SaveSyncStatus(
+        isActive: false,
+        inactiveReason: mismatch.message,
+        savesFolderMismatch: mismatch,
+      );
+    }
 
     Future.microtask(_refreshAndCheckLeftoverLock);
     return SaveSyncStatus(
@@ -280,6 +303,10 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
   /// Runs before every launch from TriOS. Returns false if the user cancelled
   /// the launch. When save sync is off, returns true straight away.
   Future<bool> prepareForLaunch(BuildContext context) async {
+    if (state.savesFolderMismatch case final mismatch?) {
+      // Launch anyway runs without a sync session: nothing is synced.
+      return showSaveSyncLaunchErrorDialog(context, mismatch.message);
+    }
     if (!state.isActive) return true;
 
     final progress = SaveSyncProgressDialog.show(

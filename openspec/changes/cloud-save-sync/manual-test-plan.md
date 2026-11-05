@@ -65,6 +65,16 @@ No game needed. Turn the custom saves folder back on and use the two "PC" folder
 | 1.28 | Repeat 1.26 once more. | The same "Save sync: <character>" profile is reused. No second copy appears. |
 | 1.29 | Make pulls due for two saves (different characters), turn off a mod, click "Sync now", and choose "Pull and switch mods" both times. | After both pulls, a dialog asks which save's mods to use. "Don't change mods" leaves mods alone. Choosing one switches to that save's profile. |
 
+### Saves folder set in vmparams
+
+No game needed. Back up `vmparams` (Windows: `<game folder>/vmparams`) first, and put it back afterwards. Turn off the custom saves folder in Settings > Starsector.
+
+| # | Steps | Expected |
+|---|---|---|
+| 1.30 | In `vmparams`, change `-Dcom.fs.starfarer.settings.paths.saves=../saves` to `-Dcom.fs.starfarer.settings.paths.saves=C:/trios-sync-test/vmsaves` (no spaces: the game's own launcher splits `vmparams` on spaces). Restart TriOS and open Settings > Save Sync. | A warning says save sync is paused, and shows the game's folder (`C:\trios-sync-test\vmsaves`) and TriOS's folder (`<game folder>\saves`). No save list and no sync buttons. |
+| 1.31 | Click Launch. | A "Save sync failed" dialog with the same message. "Cancel" stops the launch. Nothing changes in the sync folder. |
+| 1.32 | Click "Use the game's saves folder". | Settings > Starsector now has the custom saves folder ticked and set to `C:\trios-sync-test\vmsaves`. The warning goes away and the save list returns. |
+
 ## Part 2: Windows and Linux through SeaDrive
 
 ### Setup

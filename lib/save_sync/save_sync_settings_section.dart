@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trios/save_sync/save_sync_engine.dart';
 import 'package:trios/save_sync/save_sync_manager.dart';
+import 'package:trios/save_sync/saves_folder_check.dart';
 import 'package:trios/trios/settings/app_settings_logic.dart';
 import 'package:trios/utils/extensions.dart';
 import 'package:trios/utils/relative_timestamp.dart';
@@ -68,7 +69,9 @@ class SaveSyncSettingsSection extends ConsumerWidget {
                 ),
               ],
             ),
-          if (!status.isActive && status.inactiveReason != null)
+          if (status.savesFolderMismatch case final mismatch?)
+            _SavesFolderMismatchWarning(mismatch: mismatch)
+          else if (!status.isActive && status.inactiveReason != null)
             Text(status.inactiveReason!),
           if (status.isActive) ...[
             Wrap(
@@ -153,6 +156,61 @@ class SaveSyncSettingsSection extends ConsumerWidget {
           ],
         ],
       ],
+    );
+  }
+}
+
+class _SavesFolderMismatchWarning extends ConsumerWidget {
+  const _SavesFolderMismatchWarning({required this.mismatch});
+
+  final SavesFolderMismatch mismatch;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 8,
+        children: [
+          Icon(Icons.warning, color: theme.colorScheme.error),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 8,
+              children: [
+                const Text(
+                  'Save sync is paused: the game and TriOS use different '
+                  'saves folders.',
+                ),
+                SelectableText(
+                  'Game (from ${mismatch.vmparamsFile.path}):\n'
+                  '    ${mismatch.gameSavesFolder.path}\n'
+                  'TriOS:\n'
+                  '    ${mismatch.triosSavesFolder.path}',
+                ),
+                MovingTooltipWidget.text(
+                  message:
+                      'Sets the custom saves folder in the Starsector section '
+                      'above to the folder the game uses.',
+                  child: OutlinedButton(
+                    onPressed: () => ref
+                        .read(appSettings.notifier)
+                        .update(
+                          (s) => s.copyWith(
+                            useCustomSavesPath: true,
+                            customSavesPath: mismatch.gameSavesFolder,
+                          ),
+                        ),
+                    child: const Text("Use the game's saves folder"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

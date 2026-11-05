@@ -107,6 +107,13 @@ Changed: `settings.dart` (+ generated mapper), `settings_page.dart`, `launcher.d
 - `activateModProfile` logs failures instead of throwing, so save sync compares again afterwards and reports leftovers as an error.
 - Mods that aren't installed are not downloaded. That stays with the mod manager.
 
+### 17. Checking the saves folder against vmparams
+- `AppState.savesFolder` is `<game>/saves` or TriOS's custom saves folder. It never reads vmparams, so a saves path changed there was invisible to TriOS. Save sync would then pull into a folder the game doesn't use and push stale copies.
+- `saves_folder_check.dart` reads `-Dcom.fs.starfarer.settings.paths.saves` from the first selected vmparams file (the same file TriOS's direct launch uses) and resolves relative paths against the game core folder, as `_generateVmparamOverrides` in `launcher.dart` does. Plain values, quoted values, and quoted arguments are handled.
+- `savesFolderMismatchProvider` compares the two. While they differ, `SaveSyncNotifier.build` returns an inactive status, so no step can run. While the check is still loading, sync is also inactive, so nothing touches saves before the answer is known.
+- The fix button sets the existing custom saves folder setting. TriOS never edits vmparams for this.
+- `AppState.savesFolder` itself is unchanged, so Mod Profiles and other features behave as before.
+
 ## Risks / Trade-offs
 
 - **Cloud client delay** → The other PC may not have the latest zip yet. The lock warning and the "waiting for cloud client" status make this visible. TriOS cannot know what the server has.
