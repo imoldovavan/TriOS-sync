@@ -173,6 +173,36 @@ class SaveSyncManifestMapper extends ClassMapperBase<SaveSyncManifest> {
     'characterName',
     _$characterName,
   );
+  static int? _$characterLevel(SaveSyncManifest v) => v.characterLevel;
+  static const Field<SaveSyncManifest, int> _f$characterLevel = Field(
+    'characterLevel',
+    _$characterLevel,
+    opt: true,
+  );
+  static int? _$gameTimestamp(SaveSyncManifest v) => v.gameTimestamp;
+  static const Field<SaveSyncManifest, int> _f$gameTimestamp = Field(
+    'gameTimestamp',
+    _$gameTimestamp,
+    opt: true,
+  );
+  static String? _$difficulty(SaveSyncManifest v) => v.difficulty;
+  static const Field<SaveSyncManifest, String> _f$difficulty = Field(
+    'difficulty',
+    _$difficulty,
+    opt: true,
+  );
+  static bool? _$isIronMode(SaveSyncManifest v) => v.isIronMode;
+  static const Field<SaveSyncManifest, bool> _f$isIronMode = Field(
+    'isIronMode',
+    _$isIronMode,
+    opt: true,
+  );
+  static double? _$credits(SaveSyncManifest v) => v.credits;
+  static const Field<SaveSyncManifest, double> _f$credits = Field(
+    'credits',
+    _$credits,
+    opt: true,
+  );
   static String _$contentHash(SaveSyncManifest v) => v.contentHash;
   static const Field<SaveSyncManifest, String> _f$contentHash = Field(
     'contentHash',
@@ -236,6 +266,11 @@ class SaveSyncManifestMapper extends ClassMapperBase<SaveSyncManifest> {
     #layoutVersion: _f$layoutVersion,
     #saveFolderName: _f$saveFolderName,
     #characterName: _f$characterName,
+    #characterLevel: _f$characterLevel,
+    #gameTimestamp: _f$gameTimestamp,
+    #difficulty: _f$difficulty,
+    #isIronMode: _f$isIronMode,
+    #credits: _f$credits,
     #contentHash: _f$contentHash,
     #archiveHash: _f$archiveHash,
     #archiveSizeBytes: _f$archiveSizeBytes,
@@ -254,6 +289,11 @@ class SaveSyncManifestMapper extends ClassMapperBase<SaveSyncManifest> {
       layoutVersion: data.dec(_f$layoutVersion),
       saveFolderName: data.dec(_f$saveFolderName),
       characterName: data.dec(_f$characterName),
+      characterLevel: data.dec(_f$characterLevel),
+      gameTimestamp: data.dec(_f$gameTimestamp),
+      difficulty: data.dec(_f$difficulty),
+      isIronMode: data.dec(_f$isIronMode),
+      credits: data.dec(_f$credits),
       contentHash: data.dec(_f$contentHash),
       archiveHash: data.dec(_f$archiveHash),
       archiveSizeBytes: data.dec(_f$archiveSizeBytes),
@@ -340,6 +380,11 @@ abstract class SaveSyncManifestCopyWith<$R, $In extends SaveSyncManifest, $Out>
     int? layoutVersion,
     String? saveFolderName,
     String? characterName,
+    int? characterLevel,
+    int? gameTimestamp,
+    String? difficulty,
+    bool? isIronMode,
+    double? credits,
     String? contentHash,
     String? archiveHash,
     int? archiveSizeBytes,
@@ -381,6 +426,11 @@ class _SaveSyncManifestCopyWithImpl<$R, $Out>
     int? layoutVersion,
     String? saveFolderName,
     String? characterName,
+    Object? characterLevel = $none,
+    Object? gameTimestamp = $none,
+    Object? difficulty = $none,
+    Object? isIronMode = $none,
+    Object? credits = $none,
     String? contentHash,
     String? archiveHash,
     int? archiveSizeBytes,
@@ -397,6 +447,11 @@ class _SaveSyncManifestCopyWithImpl<$R, $Out>
       if (layoutVersion != null) #layoutVersion: layoutVersion,
       if (saveFolderName != null) #saveFolderName: saveFolderName,
       if (characterName != null) #characterName: characterName,
+      if (characterLevel != $none) #characterLevel: characterLevel,
+      if (gameTimestamp != $none) #gameTimestamp: gameTimestamp,
+      if (difficulty != $none) #difficulty: difficulty,
+      if (isIronMode != $none) #isIronMode: isIronMode,
+      if (credits != $none) #credits: credits,
       if (contentHash != null) #contentHash: contentHash,
       if (archiveHash != null) #archiveHash: archiveHash,
       if (archiveSizeBytes != null) #archiveSizeBytes: archiveSizeBytes,
@@ -415,6 +470,11 @@ class _SaveSyncManifestCopyWithImpl<$R, $Out>
     layoutVersion: data.get(#layoutVersion, or: $value.layoutVersion),
     saveFolderName: data.get(#saveFolderName, or: $value.saveFolderName),
     characterName: data.get(#characterName, or: $value.characterName),
+    characterLevel: data.get(#characterLevel, or: $value.characterLevel),
+    gameTimestamp: data.get(#gameTimestamp, or: $value.gameTimestamp),
+    difficulty: data.get(#difficulty, or: $value.difficulty),
+    isIronMode: data.get(#isIronMode, or: $value.isIronMode),
+    credits: data.get(#credits, or: $value.credits),
     contentHash: data.get(#contentHash, or: $value.contentHash),
     archiveHash: data.get(#archiveHash, or: $value.archiveHash),
     archiveSizeBytes: data.get(#archiveSizeBytes, or: $value.archiveSizeBytes),

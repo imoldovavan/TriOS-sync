@@ -9,6 +9,7 @@ import 'package:trios/save_sync/models/save_sync_lock.dart';
 import 'package:trios/save_sync/models/save_sync_manifest.dart';
 import 'package:trios/save_sync/models/save_sync_state.dart';
 import 'package:trios/save_sync/save_archiver.dart';
+import 'package:trios/save_sync/save_credits_reader.dart';
 import 'package:trios/save_sync/save_content_hash.dart';
 import 'package:trios/save_sync/save_sync_backend.dart';
 import 'package:trios/save_sync/save_sync_backups.dart';
@@ -251,6 +252,11 @@ class SaveSyncEngine {
       final manifest = SaveSyncManifest(
         saveFolderName: saveFolderName,
         characterName: localSave.characterName,
+        characterLevel: localSave.characterLevel,
+        gameTimestamp: localSave.gameTimestamp,
+        difficulty: localSave.difficulty,
+        isIronMode: localSave.isIronMode,
+        credits: await readSaveCredits(folder),
         contentHash: contentHash,
         archiveHash: await computeFileHash(zip),
         archiveSizeBytes: await zip.length(),
@@ -259,7 +265,7 @@ class SaveSyncEngine {
         machineId: machine.id,
         machineName: machine.name,
         os: machine.os,
-        gameVersion: gameVersion,
+        gameVersion: localSave.gameVersion ?? gameVersion,
         triosVersion: triosVersion,
         mods: localSave.mods.map((m) => m.toShallowModVariant()).toList(),
       );

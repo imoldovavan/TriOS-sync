@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:trios/save_sync/save_details_tooltip.dart';
 import 'package:trios/save_sync/save_sync_engine.dart';
 import 'package:trios/save_sync/save_sync_manager.dart';
 import 'package:trios/save_sync/saves_folder_check.dart';
@@ -300,37 +301,53 @@ class _SaveList extends ConsumerWidget {
                           ),
                   ),
                   Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.characterName.isEmpty
-                              ? item.saveFolderName
-                              : item.characterName,
-                          style: theme.textTheme.bodyLarge,
-                        ),
-                        Text(
-                          item.saveFolderName,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    flex: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.status.label,
-                          style: TextStyle(color: _statusColor(theme, item)),
-                        ),
-                        if (item.problem != null)
-                          Text(item.problem!, style: theme.textTheme.bodySmall),
-                        if (_lastSyncText(item) case final text?)
-                          Text(text, style: theme.textTheme.bodySmall),
-                      ],
+                    child: MovingTooltipWidget.framed(
+                      tooltipWidgetBuilder: (_) =>
+                          SaveDetailsTooltip(item: item),
+                      child: Row(
+                        spacing: 8,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.characterName.isEmpty
+                                      ? item.saveFolderName
+                                      : item.characterName,
+                                  style: theme.textTheme.bodyLarge,
+                                ),
+                                Text(
+                                  item.saveFolderName,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.status.label,
+                                  style: TextStyle(
+                                    color: _statusColor(theme, item),
+                                  ),
+                                ),
+                                if (item.problem != null)
+                                  Text(
+                                    item.problem!,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                if (_lastSyncText(item) case final text?)
+                                  Text(text, style: theme.textTheme.bodySmall),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   if (item.status == SaveSyncItemStatus.conflict)

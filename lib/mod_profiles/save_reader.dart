@@ -139,6 +139,10 @@ Future<SaveFile> readSaveFolder(Directory folderOfSave) async {
             id: id,
             name: name,
             version: version,
+            gameVersion: spec
+                .getElement('gameVersion')
+                ?.getElement('string')
+                ?.innerText,
           );
         }
       }
@@ -160,6 +164,14 @@ Future<SaveFile> readSaveFolder(Directory folderOfSave) async {
     });
   }
 
+  // The save doesn't record the game version. Mods only load on the game
+  // version they were made for or newer, so the newest one is the best guess.
+  final gameVersion = enabledMods
+      .map((mod) => mod.gameVersion?.trim())
+      .nonNulls
+      .where((v) => v.isNotEmpty)
+      .maxByOrNull((v) => Version.parse(v));
+
   return SaveFile(
     id: folderOfSave.name,
     folder: folderOfSave,
@@ -167,6 +179,7 @@ Future<SaveFile> readSaveFolder(Directory folderOfSave) async {
     characterLevel: characterLevel,
     portraitPath: portraitPath,
     saveFileVersion: saveFileVersion,
+    gameVersion: gameVersion,
     saveDate: saveDate,
     mods: enabledMods,
     compressed: compressed,
@@ -184,6 +197,10 @@ class SaveFile {
   final int characterLevel;
   final String? portraitPath;
   final String? saveFileVersion;
+
+  /// Best guess at the game version the save was played on: the newest
+  /// `<gameVersion>` among its enabled mods.
+  final String? gameVersion;
   final DateTime? saveDate;
   final List<SaveFileMod> mods;
   final bool? compressed;
@@ -199,6 +216,7 @@ class SaveFile {
     required this.characterLevel,
     this.portraitPath,
     this.saveFileVersion,
+    this.gameVersion,
     required this.saveDate,
     required this.mods,
     required this.compressed,
@@ -214,7 +232,15 @@ class SaveFileMod {
   final String name;
   final Version version;
 
-  SaveFileMod({required this.id, required this.name, required this.version});
+  /// Game version the mod was made for.
+  final String? gameVersion;
+
+  SaveFileMod({
+    required this.id,
+    required this.name,
+    required this.version,
+    this.gameVersion,
+  });
 
   ShallowModVariant toShallowModVariant() {
     return ShallowModVariant(

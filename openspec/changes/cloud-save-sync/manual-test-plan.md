@@ -80,6 +80,7 @@ No game needed. Back up `vmparams` (Windows: `<game folder>/vmparams`) first, an
 | # | Steps | Expected |
 |---|---|---|
 | 1.33 | With a synced, up-to-date save, delete its folder from the saves folder in File Explorer. Click "Check again", then "Restore from sync folder" on that save. | The status was "Missing on this PC; nothing was deleted". After restoring, the save folder is back and the status is "Up to date". Starsector lists the save again. |
+| 1.34 | Hover the name or status of a save that exists on this PC and in the sync folder. Then make the sync folder copy newer (change it on the other "PC" and sync) and hover again. | A popup shows the character, then a "This PC" section (save time, in-game date, level, credits matching the game's, game version, difficulty, mods enabled). Credits may show "Reading..." for a moment and a "Sync folder" section (who wrote it, when, zip size). When the copies differ, the "Sync folder" section also lists that copy's save time, in-game date, and so on. Manifests written before this change show no level, in-game date, or credits for the sync folder copy. |
 
 ## Part 2: Windows and Linux through SeaDrive
 

@@ -74,3 +74,10 @@ Each numbered section is one commit.
 
 - [x] 11.1 "Restore from sync folder" button for saves marked "Missing on this PC" (normal pull with mod check)
 - [x] 11.2 Engine test for restoring; manual test plan step 1.33
+
+## 12. Save details popup
+
+- [x] 12.1 Hovering a save in the list shows a popup: character, save time, in-game date, level, credits, game version, difficulty, iron mode, mod count, for this PC's copy and the sync folder's copy
+- [x] 12.2 Manifest stores level, in-game date, difficulty, iron mode, and credits (optional fields, so older manifests still load); manual test plan step 1.34
+- [x] 12.3 `save_credits_reader.dart`: read credits from `campaign.xml` (player fleet → `fD` → `cargo` → `c` → `value`, following `ref`), with tests
+- [x] 12.4 Game version: saves don't record it, so use the newest `<gameVersion>` among the save's enabled mods

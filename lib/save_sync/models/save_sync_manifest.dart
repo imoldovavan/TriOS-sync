@@ -23,6 +23,11 @@ class SaveSyncManifest with SaveSyncManifestMappable {
     this.layoutVersion = saveSyncLayoutVersion,
     required this.saveFolderName,
     required this.characterName,
+    this.characterLevel,
+    this.gameTimestamp,
+    this.difficulty,
+    this.isIronMode,
+    this.credits,
     required this.contentHash,
     required this.archiveHash,
     required this.archiveSizeBytes,
@@ -41,6 +46,18 @@ class SaveSyncManifest with SaveSyncManifestMappable {
   /// Name of the save's folder inside the saves folder, e.g. `save_foo_123`.
   final String saveFolderName;
   final String characterName;
+
+  /// Copied from `descriptor.xml` for the save details popup. Missing in
+  /// manifests written before they were added.
+  final int? characterLevel;
+
+  /// In-game date, in milliseconds (see `Constants.gameDateFormat`).
+  final int? gameTimestamp;
+  final String? difficulty;
+  final bool? isIronMode;
+
+  /// Player's credits, from `campaign.xml`.
+  final double? credits;
 
   /// Hash of the save's files. See `computeSaveContentHash`.
   final String contentHash;
