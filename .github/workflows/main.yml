@@ -96,6 +96,8 @@ jobs:
 
   build-macos-intel:
     needs: test
+    # Mac builds only run on the main repo; forks release Windows and Linux.
+    if: github.repository == 'wispborne/TriOS'
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
@@ -143,6 +145,8 @@ jobs:
 
   build-macos-arm:
     needs: test
+    # Mac builds only run on the main repo; forks release Windows and Linux.
+    if: github.repository == 'wispborne/TriOS'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -250,6 +254,14 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     needs: [ build-macos-intel, build-macos-arm, build-windows, build-linux ]
+    # Skipped Mac builds would skip this job too, so check results directly.
+    if: >-
+      ${{ !cancelled() &&
+      needs.build-windows.result == 'success' &&
+      needs.build-linux.result == 'success' &&
+      (github.repository != 'wispborne/TriOS' ||
+        (needs.build-macos-intel.result == 'success' &&
+         needs.build-macos-arm.result == 'success')) }}
     permissions:
       contents: write
     steps:
@@ -299,6 +311,7 @@ jobs:
 
       - name: Upload macOS Intel Artifact
         id: upload-macos-intel
+        if: github.repository == 'wispborne/TriOS'
         uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -310,6 +323,7 @@ jobs:
 
       - name: Upload macOS Apple Silicon Artifact
         id: upload-macos-arm
+        if: github.repository == 'wispborne/TriOS'
         uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
