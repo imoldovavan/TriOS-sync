@@ -69,3 +69,8 @@ Each numbered section is one commit.
 - [x] 10.2 Pause save sync while they differ; block launch with "Launch anyway" / "Cancel"
 - [x] 10.3 Settings warning with both paths and "Use the game's saves folder"
 - [x] 10.4 Tests for reading and resolving the path; manual test plan steps 1.30–1.32
+
+## 11. Restore a save deleted on this PC
+
+- [x] 11.1 "Restore from sync folder" button for saves marked "Missing on this PC" (normal pull with mod check)
+- [x] 11.2 Engine test for restoring; manual test plan step 1.33

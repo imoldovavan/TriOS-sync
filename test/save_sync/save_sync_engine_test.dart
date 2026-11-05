@@ -299,6 +299,22 @@ void main() {
     );
   });
 
+  test(
+    "a save deleted on this PC can be restored from the sync folder",
+    () async {
+      a.writeSave(save, 'day 1');
+      await a.engine.push(save);
+      a.save(save).deleteSync(recursive: true);
+
+      await a.engine.pull(await a.status(save));
+
+      expect(a.campaign(save), 'day 1');
+      expect((await a.status(save)).status, SaveSyncItemStatus.upToDate);
+      // Nothing local was replaced, so nothing went to backups.
+      expect(a.backupFiles(), isEmpty);
+    },
+  );
+
   test("names differing only by case are refused", () async {
     // Synced from a Linux PC as save_Foo_1; this PC has save_foo_1.
     b.writeSave('save_Foo_1', 'x');

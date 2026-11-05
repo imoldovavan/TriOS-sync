@@ -340,6 +340,19 @@ class _SaveList extends ConsumerWidget {
                           : () => notifier.resolveConflict(context, item),
                       child: const Text('Resolve...'),
                     ),
+                  if (item.status == SaveSyncItemStatus.missingLocally &&
+                      item.remoteManifest != null)
+                    MovingTooltipWidget.text(
+                      message:
+                          'Puts the copy from the sync folder back into this '
+                          "PC's saves folder.",
+                      child: OutlinedButton(
+                        onPressed: isBusy
+                            ? null
+                            : () => notifier.restoreSave(context, item),
+                        child: const Text('Restore from sync folder'),
+                      ),
+                    ),
                 ],
               ),
             ),

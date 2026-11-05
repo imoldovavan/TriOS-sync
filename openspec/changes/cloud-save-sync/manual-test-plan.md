@@ -75,6 +75,12 @@ No game needed. Back up `vmparams` (Windows: `<game folder>/vmparams`) first, an
 | 1.31 | Click Launch. | A "Save sync failed" dialog with the same message. "Cancel" stops the launch. Nothing changes in the sync folder. |
 | 1.32 | Click "Use the game's saves folder". | Settings > Starsector now has the custom saves folder ticked and set to `C:\trios-sync-test\vmsaves`. The warning goes away and the save list returns. |
 
+### Restoring a deleted save
+
+| # | Steps | Expected |
+|---|---|---|
+| 1.33 | With a synced, up-to-date save, delete its folder from the saves folder in File Explorer. Click "Check again", then "Restore from sync folder" on that save. | The status was "Missing on this PC; nothing was deleted". After restoring, the save folder is back and the status is "Up to date". Starsector lists the save again. |
+
 ## Part 2: Windows and Linux through SeaDrive
 
 ### Setup

@@ -54,7 +54,7 @@ TriOS SHALL decide whether a save changed by comparing content hashes, not file 
   - No record, S exists, L missing: pull.
   - No record, both exist and equal: up to date (record is created).
   - No record, both exist and differ: conflict.
-  - Record exists, L missing: "Missing on this PC"; nothing is pushed or deleted.
+  - Record exists, L missing: "Missing on this PC"; nothing is pushed or deleted. A "Restore from sync folder" button pulls the synced copy back, with the same zip check and mod check as any pull. Nothing restores it automatically.
   - Record exists, S missing: push.
 
 ### Requirement: Pre-launch sync

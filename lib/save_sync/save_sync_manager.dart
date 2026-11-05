@@ -405,6 +405,54 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     });
   }
 
+  /// Puts back a save that is missing on this PC, from the sync folder. Uses
+  /// the same steps and mod check as a normal pull.
+  Future<void> restoreSave(BuildContext context, SaveSyncItem item) async {
+    if (ref.read(AppState.isGameRunning).value == true) {
+      state = state.copyWith(
+        errorMessage: () =>
+            'Starsector is running. Close it before restoring a save.',
+      );
+      return;
+    }
+    await _runMutex.protect(() async {
+      try {
+        var switchMods = false;
+        final changes = _modChanges(item);
+        if (changes.isNotEmpty && context.mounted) {
+          final choice = await showSaveSyncModCheckDialog(
+            context,
+            item,
+            changes,
+            isLaunch: false,
+          );
+          if (choice == SaveSyncModCheckChoice.skipSave) return;
+          switchMods = choice == SaveSyncModCheckChoice.pullAndSwitchMods;
+        }
+
+        state = state.copyWith(
+          busyMessage: () => 'Restoring ${item.saveFolderName}...',
+        );
+        final engine = await _createEngine();
+        await engine.pull(item);
+        final profileName = switchMods ? await _switchModsToSave(item) : null;
+        state = state.copyWith(
+          overview: await engine.loadOverview(_selectedSaveNames),
+          busyMessage: () => null,
+          errorMessage: () => null,
+          lastMessage: () => [
+            'Restored ${item.saveFolderName} from the sync folder.',
+            if (profileName != null)
+              'Switched mods to the profile "$profileName".',
+          ].join(' '),
+          lastRunAt: DateTime.now(),
+        );
+      } catch (e, st) {
+        _setError(e, st);
+      }
+    });
+  }
+
   /// Opens the conflict dialog for one save from the settings list.
   Future<void> resolveConflict(BuildContext context, SaveSyncItem item) async {
     final choice = await showSaveSyncConflictDialog(context, item);
