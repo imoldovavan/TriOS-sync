@@ -363,7 +363,12 @@ class ModProfileManagerNotifier
     return toVariantAlternate;
   }
 
-  Future<void> activateModProfile(String modProfileId) async {
+  /// [reapplyIfActive] applies the profile's mods even when it is already the
+  /// active profile (used after its mod list was replaced).
+  Future<void> activateModProfile(
+    String modProfileId, {
+    bool reapplyIfActive = false,
+  }) async {
     Fimber.i("Activating mod profile $modProfileId.");
     final modVariantsNotifier = ref.read(AppState.modVariants.notifier);
     final modManagerNotifier = ref.read(modManager.notifier);
@@ -379,7 +384,7 @@ class ModProfileManagerNotifier
       final activeProfileId = ref.read(
         appSettings.select((s) => s.activeModProfileId),
       );
-      if (activeProfileId == modProfileId) {
+      if (activeProfileId == modProfileId && !reapplyIfActive) {
         Fimber.i("Profile $modProfileId is already active.");
         return;
       }

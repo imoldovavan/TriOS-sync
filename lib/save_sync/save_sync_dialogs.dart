@@ -4,6 +4,7 @@ import 'package:trios/mod_profiles/mod_profiles_manager.dart';
 import 'package:trios/save_sync/models/save_sync_lock.dart';
 import 'package:trios/save_sync/save_sync_engine.dart';
 import 'package:trios/utils/relative_timestamp.dart';
+import 'package:trios/widgets/trios_radio_tile.dart';
 
 final _dateFormat = DateFormat('yyyy-MM-dd HH:mm');
 
@@ -113,16 +114,71 @@ Future<bool> showSaveSyncLockWarningDialog(
   return result ?? false;
 }
 
-enum SaveSyncModCheckChoice { pullAnyway, skipSave, cancelLaunch }
+enum SaveSyncModCheckChoice {
+  pullAndSwitchMods,
+  pullKeepMods,
+  skipSave,
+  cancelLaunch,
+}
 
-/// Lists mods the synced save uses that are missing here or installed at a
-/// different version.
+bool _isMissing(ModChange change) =>
+    change.changeType == ModChangeType.missingMod ||
+    change.changeType == ModChangeType.missingVariant;
+
+/// True if TriOS can turn mods on/off or switch versions for any of [changes].
+/// Mods that aren't installed can't be fixed this way.
+bool canSwitchModsFor(List<ModChange> changes) =>
+    changes.any((c) => !_isMissing(c));
+
+String _describeModChange(ModChange change) {
+  final installedName = change.mod?.findFirstEnabledOrHighestVersion?.modInfo;
+  final savedName =
+      '${change.variantAsShallowMod?.nameOrId ?? change.modId} '
+      '${change.variantAsShallowMod?.version ?? ''}';
+  return switch (change.changeType) {
+    ModChangeType.enable =>
+      change.toVariant?.modInfo.formattedNameVersion ?? savedName,
+    ModChangeType.disable =>
+      change.fromVariant?.modInfo.formattedNameVersion ??
+          installedName?.formattedNameVersion ??
+          change.modId,
+    ModChangeType.swap =>
+      '${installedName?.nameOrId ?? change.modId}: '
+          '${change.fromVariant?.modInfo.version ?? '?'} → '
+          '${change.toVariant?.modInfo.version ?? '?'}',
+    ModChangeType.missingMod => '$savedName (not installed)',
+    ModChangeType.missingVariant => '$savedName (this version not installed)',
+  };
+}
+
+/// Shows how the synced save's mods differ from the mods enabled here, and
+/// offers to switch to them.
 Future<SaveSyncModCheckChoice> showSaveSyncModCheckDialog(
   BuildContext context,
   SaveSyncItem item,
-  List<ModChange> problems, {
+  List<ModChange> changes, {
   required bool isLaunch,
 }) async {
+  final theme = Theme.of(context);
+  final canSwitch = canSwitchModsFor(changes);
+  final hasMissing = changes.any(_isMissing);
+
+  Widget section(String title, Iterable<ModChange> sectionChanges) {
+    final list = sectionChanges.toList();
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 4,
+      children: [
+        Text(title, style: theme.textTheme.titleSmall),
+        for (final change in list) Text('• ${_describeModChange(change)}'),
+      ],
+    );
+  }
+
+  Iterable<ModChange> ofType(ModChangeType type) =>
+      changes.where((c) => c.changeType == type);
+
   final result = await showDialog<SaveSyncModCheckChoice>(
     context: context,
     builder: (context) => AlertDialog(
@@ -133,23 +189,30 @@ Future<SaveSyncModCheckChoice> showSaveSyncModCheckDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 8,
+            spacing: 16,
             children: [
               Text(
                 'The synced copy of ${item.saveFolderName} was saved with '
-                'mods that are missing on this PC or installed at a '
-                'different version.',
+                'different mods than the ones enabled on this PC.',
               ),
-              for (final change in problems)
-                Text(switch (change.changeType) {
-                  ModChangeType.missingMod =>
-                    '• ${change.variantAsShallowMod?.nameOrId ?? change.modId} '
-                        '${change.variantAsShallowMod?.version ?? ''}: not installed',
-                  _ =>
-                    '• ${change.variantAsShallowMod?.nameOrId ?? change.modId} '
-                        '${change.variantAsShallowMod?.version ?? ''}: '
-                        'this version is not installed',
-                }),
+              section('Would be turned on', ofType(ModChangeType.enable)),
+              section('Would be turned off', ofType(ModChangeType.disable)),
+              section('Would switch version', ofType(ModChangeType.swap)),
+              section(
+                'Not installed on this PC (install these yourself)',
+                changes.where(_isMissing),
+              ),
+              if (canSwitch)
+                Text(
+                  '"Pull and switch mods" saves the mod list as the profile '
+                  '"${saveSyncModProfileName(item.characterName)}" and '
+                  'switches to it. Your current profile is not changed.',
+                ),
+              if (hasMissing)
+                Text(
+                  'Loading the save without its mods may break it.',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
             ],
           ),
         ),
@@ -168,13 +231,77 @@ Future<SaveSyncModCheckChoice> showSaveSyncModCheckDialog(
         ),
         TextButton(
           onPressed: () =>
-              Navigator.of(context).pop(SaveSyncModCheckChoice.pullAnyway),
-          child: const Text('Pull anyway'),
+              Navigator.of(context).pop(SaveSyncModCheckChoice.pullKeepMods),
+          child: Text(canSwitch ? 'Pull, keep my mods' : 'Pull anyway'),
         ),
+        if (canSwitch)
+          TextButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(SaveSyncModCheckChoice.pullAndSwitchMods),
+            child: const Text('Pull and switch mods'),
+          ),
       ],
     ),
   );
   return result ?? SaveSyncModCheckChoice.skipSave;
+}
+
+/// Name of the mod profile that holds a synced save's mod list.
+String saveSyncModProfileName(String characterName) =>
+    'Save sync: $characterName';
+
+/// Asked when "switch mods" was chosen for more than one pulled save. Returns
+/// the save whose mods to use, or null to leave mods as they are.
+Future<SaveSyncItem?> showSaveSyncChooseModsDialog(
+  BuildContext context,
+  List<SaveSyncItem> items,
+) async {
+  var selected = items.first;
+  return showDialog<SaveSyncItem>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text("Which save's mods should be used?"),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 8,
+            children: [
+              const Text(
+                'You chose to switch mods for more than one save. Only one '
+                'set of mods can be enabled at a time. Pick the save you plan '
+                'to play.',
+              ),
+              for (final item in items)
+                TriOSRadioTile<SaveSyncItem>(
+                  value: item,
+                  groupValue: selected,
+                  onChanged: (value) {
+                    if (value != null) setState(() => selected = value);
+                  },
+                  title: Text(
+                    '${item.characterName} (${item.saveFolderName})',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Don't change mods"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(selected),
+            child: const Text('Switch mods'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Asks which copy to keep when both changed. Never decides by itself.

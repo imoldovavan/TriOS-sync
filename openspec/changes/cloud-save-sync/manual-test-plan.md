@@ -35,11 +35,12 @@ Records are kept per saves folder. Switching TriOS's custom saves folder makes o
 | 1.13 | Copy `saves/save_test_123.zip` to `saves/save_test_123 (SFConflict test 2026-11-04-15-20-00).zip`, then "Check again". | Status "Cloud conflict copy found". A "Move 1 conflict copies to backups" button appears. Clicking it moves the copy to a `_cloud-conflict-copy` backup, and the status returns to normal. |
 | 1.14 | Rename `saves/save_test_123.zip` to something else, then "Check again". Rename it back afterwards. | "Waiting for the cloud client to finish". |
 | 1.15 | Copy a different save's zip over `saves/save_test_123.zip`. On the other "PC", where a pull is due, click "Sync now". | Error: the synced zip "does not match its manifest yet". The local save is unchanged. |
-| 1.16 | In `saves/save_test_123.manifest.json`, add a fake mod to `mods`, e.g. `{"modId": "not_a_real_mod", "modName": "Fake", "smolVariantId": "x", "version": "1.0"}`. Then pull on the other "PC". | A dialog lists "Fake 1.0: not installed" with "Skip this save" and "Pull anyway". |
+| 1.16 | In `saves/save_test_123.manifest.json`, add a fake mod to `mods`, e.g. `{"modId": "not_a_real_mod", "modName": "Fake", "smolVariantId": "x", "version": "1.0"}`. Then pull on the other "PC". | A dialog lists "Fake 1.0 (not installed)" under "Not installed on this PC", with a red warning, "Skip this save", and "Pull anyway". There is no "Pull and switch mods" button if nothing else differs. |
 | 1.17 | Rename the whole sync folder, then "Check again". Rename it back. | Error: "The sync folder was not found ...". TriOS does not create the folder again. |
 | 1.18 | Create `sync/locks/other-pc.lock.json` containing `{"machineId": "other-pc", "machineName": "LINUX-BOX", "os": "linux", "startedAt": "<now, UTC, e.g. 2026-11-04T15:00:00.000Z>"}`. Click Launch. | A warning names LINUX-BOX. "Cancel" stops the launch. |
 | 1.19 | Set `startedAt` in that file to two days ago and launch again. | The same warning adds "over a day old ... probably left over from a crash". Delete the file afterwards. |
 | 1.20 | Untick "Sync saves through a folder" and launch. | The launch behaves as before. No file in the sync folder changes. |
+
 
 ### With the game (real saves folder, throwaway campaign, after the backup above)
 
@@ -52,6 +53,17 @@ Turn off the custom saves folder. In Save Sync, tick only the throwaway save.
 | 1.23 | Launch from TriOS, close TriOS while playing, quit the game, then start TriOS. | On start, TriOS writes the changed save and removes the lock. |
 | 1.24 | With TriOS open, start the game from its own launcher. | A warning says the game was started outside TriOS. A lock appears. After you quit, the save is written. |
 | 1.25 | Turn off Settings > "Check if game is running". | Save Sync shows a warning with a "Turn it on" button. |
+
+### Switching mods to match a synced save
+
+No game needed. Turn the custom saves folder back on and use the two "PC" folders from Setup. Use a save made with mods you have installed. Note your active mod profile on the Mod Profiles page first.
+
+| # | Steps | Expected |
+|---|---|---|
+| 1.26 | Make a pull due on one "PC" (change the save on the other and sync). On the Mods page, turn off one mod the save uses. Click "Sync now". | The dialog lists that mod under "Would be turned on". Choose "Pull and switch mods". The mod is on again. Mod Profiles shows a new active profile "Save sync: <character>". Your previous profile still has the mod off. The status line says "Switched mods to the profile ...". |
+| 1.27 | Repeat 1.26, but choose "Pull, keep my mods". | The save is pulled. Enabled mods don't change. |
+| 1.28 | Repeat 1.26 once more. | The same "Save sync: <character>" profile is reused. No second copy appears. |
+| 1.29 | Make pulls due for two saves (different characters), turn off a mod, click "Sync now", and choose "Pull and switch mods" both times. | After both pulls, a dialog asks which save's mods to use. "Don't change mods" leaves mods alone. Choosing one switches to that save's profile. |
 
 ## Part 2: Windows and Linux through SeaDrive
 

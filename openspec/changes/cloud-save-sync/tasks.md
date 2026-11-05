@@ -55,3 +55,10 @@ Each numbered section is one commit.
 - [x] 8.2 Add a line for `lib/save_sync/` to the feature list in `CLAUDE.md` and `AGENTS.md`
 - [x] 8.3 `flutter analyze` (no issues in new or changed lines) and `flutter test` (all pass except the existing `local-only` 7-Zip tests, which need the maintainer's test archives). `dart run custom_lint` can't run: `custom_lint` is in `analysis_options.yaml` but not in `pubspec.yaml`.
 - [x] 8.4 Write the manual test plan (two folders on one PC; Windows ↔ Linux through SeaDrive) in `openspec/changes/cloud-save-sync/manual-test-plan.md`
+
+## 9. Switch mods to match a pulled save
+
+- [x] 9.1 Mod check compares with enabled mods and lists turn on / turn off / switch version / not installed
+- [x] 9.2 "Pull and switch mods" saves a "Save sync: <character>" profile and activates it (`activateModProfile` gets `reapplyIfActive`)
+- [x] 9.3 Ask which save's mods to use when several were chosen; report mods that didn't switch as an error
+- [x] 9.4 Manual test plan steps 1.26–1.29 (the notifier's dialog flows have no automated tests, same as 5.6)

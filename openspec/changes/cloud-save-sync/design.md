@@ -98,6 +98,15 @@ Changed: `settings.dart` (+ generated mapper), `settings_page.dart`, `launcher.d
 - If a launch doesn't start the game within 3 minutes (for example the launch precheck was cancelled), the sync session closes and the lock is removed.
 - The settings group has a "Check again" button that re-reads both sides without changing anything.
 
+### 16. Switching mods to match a pulled save
+- The mod check compares the save's mods with the mods **enabled** here (it used to compare only with installed mods), so it can list mods to turn on, turn off, or switch version.
+- "Pull and switch mods" writes the save's mod list into a profile named "Save sync: <character>" and activates it with `activateModProfile`. *Why:* the active mod profile follows whatever is enabled, so switching mods directly would overwrite the user's own profile. Reusing one profile per character avoids piling up profiles.
+- `activateModProfile` gained `reapplyIfActive`, because the "Save sync" profile may already be active when its list is replaced. Nothing else in Mod Profiles changed.
+- The profile is saved with `updateState` and awaited, because `createModProfile` doesn't wait for its write and activation would not find the new profile.
+- Switching runs once, after all pulls. If it was chosen for several saves, a dialog asks which one, because only one set of mods can be enabled.
+- `activateModProfile` logs failures instead of throwing, so save sync compares again afterwards and reports leftovers as an error.
+- Mods that aren't installed are not downloaded. That stays with the mod manager.
+
 ## Risks / Trade-offs
 
 - **Cloud client delay** → The other PC may not have the latest zip yet. The lock warning and the "waiting for cloud client" status make this visible. TriOS cannot know what the server has.

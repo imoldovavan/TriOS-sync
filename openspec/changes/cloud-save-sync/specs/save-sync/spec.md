@@ -125,11 +125,24 @@ TriOS SHALL recognize conflict copies made by cloud clients in the sync folder: 
 - **THEN** save `save_foo_123` shows status "Cloud conflict copy found", sync for that save pauses, and the settings group offers "Move conflict copies to backups"
 
 ### Requirement: Mod check before pull
-Before replacing a local save with a synced one, TriOS SHALL compare the manifest's mod list with installed mods using `ModProfileManagerNotifier.computeModProfileChanges`, the same way Mod Profiles checks a save.
+Before replacing a local save with a synced one, TriOS SHALL compare the manifest's mod list with the mods enabled on this PC using `ModProfileManagerNotifier.computeModProfileChanges`, the same way Mod Profiles compares a profile.
 
-#### Scenario: Missing mods
-- **WHEN** the synced save uses mods that are missing or installed at a different version
-- **THEN** TriOS lists them and offers "Pull anyway", "Skip this save", and "Cancel launch"
+#### Scenario: Mods differ
+- **WHEN** the synced save's mods differ from the enabled mods (mods to turn on or off, a different version, or mods not installed)
+- **THEN** TriOS lists the differences by kind and offers "Pull, keep my mods" (or "Pull anyway" if nothing can be switched), "Skip this save", and, before a launch, "Cancel launch"
+
+#### Scenario: Switch mods to match
+- **WHEN** at least one difference can be fixed with installed mods and the user chooses "Pull and switch mods"
+- **THEN** after the pull, TriOS stores the save's mod list in a mod profile named "Save sync: <character name>" (creating it, or replacing the list of an existing one with that name), switches to that profile the same way the Mod Profiles page does, and leaves the user's previous profile unchanged
+- **AND** mods that are not installed are skipped and stay listed in the dialog
+
+#### Scenario: Several saves want their mods
+- **WHEN** "Pull and switch mods" was chosen for more than one save in one sync
+- **THEN** after all pulls, TriOS asks which save's mods to use, with "Don't change mods" as an option
+
+#### Scenario: Switching fails
+- **WHEN** some mods are still different after switching
+- **THEN** TriOS reports it as a sync error; the pulled save stays in place
 
 ### Requirement: Safe writes and backups
 TriOS SHALL write each zip and manifest under a `.tmp` name in the sync folder and rename it when complete. The zip SHALL be renamed before the manifest. TriOS SHALL never delete save data outright. Any local save or synced file that is replaced SHALL first go to `<TriOS config folder>/save_sync_backups/<save-folder-name>/<timestamp>_<reason>/`.

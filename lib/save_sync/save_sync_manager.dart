@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mutex/mutex.dart';
@@ -141,6 +142,9 @@ enum _SyncOutcome { done, cancelLaunch }
 class _SyncRunSummary {
   int pushed = 0;
   int pulled = 0;
+
+  /// Set when mods were switched to match a pulled save.
+  String? modProfileName;
   final errors = <String>[];
 
   String describe() {
@@ -149,7 +153,10 @@ class _SyncRunSummary {
       if (pulled > 0) 'pulled $pulled ${pulled == 1 ? 'save' : 'saves'}',
     ];
     if (parts.isEmpty) return 'Everything was already up to date.';
-    final text = '${parts.join(', ')}.';
+    var text = '${parts.join(', ')}.';
+    if (modProfileName != null) {
+      text += ' Switched mods to the profile "$modProfileName".';
+    }
     return pushed > 0 ? '$text $_cloudUploadNote' : text;
   }
 }
@@ -407,6 +414,9 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     state = state.copyWith(busyMessage: () => 'Syncing saves...');
     final engine = await _createEngine();
     final overview = await engine.loadOverview(_selectedSaveNames);
+    // Pulled saves the user chose "switch mods" for. Applied once at the end,
+    // since only one set of mods can be enabled.
+    final switchModsFor = <SaveSyncItem>[];
 
     for (final item in overview.items.where((i) => i.isSelected)) {
       try {
@@ -421,19 +431,22 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
             summary.pushed++;
           case SaveSyncItemStatus.willPull:
             if (!allowPull) continue;
+            var switchMods = false;
             if (context != null && context.mounted) {
-              final problems = _modProblems(item);
-              if (problems.isNotEmpty) {
+              final changes = _modChanges(item);
+              if (changes.isNotEmpty) {
                 final choice = await showSaveSyncModCheckDialog(
                   context,
                   item,
-                  problems,
+                  changes,
                   isLaunch: isLaunch,
                 );
                 if (choice == SaveSyncModCheckChoice.cancelLaunch) {
                   return _SyncOutcome.cancelLaunch;
                 }
                 if (choice == SaveSyncModCheckChoice.skipSave) continue;
+                switchMods =
+                    choice == SaveSyncModCheckChoice.pullAndSwitchMods;
               }
             }
             state = state.copyWith(
@@ -441,6 +454,7 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
             );
             await engine.pull(item);
             summary.pulled++;
+            if (switchMods) switchModsFor.add(item);
           case SaveSyncItemStatus.conflict:
             if (context == null || !context.mounted) continue;
             final choice = await showSaveSyncConflictDialog(context, item);
@@ -451,6 +465,23 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
       } on Exception catch (e) {
         Fimber.w('Save sync: ${item.saveFolderName} failed: $e');
         summary.errors.add('${item.saveFolderName}: ${_messageFor(e)}');
+      }
+    }
+
+    if (switchModsFor.isNotEmpty && context != null && context.mounted) {
+      final chosen = switchModsFor.length == 1
+          ? switchModsFor.single
+          : await showSaveSyncChooseModsDialog(context, switchModsFor);
+      if (chosen != null) {
+        state = state.copyWith(
+          busyMessage: () => 'Switching mods for ${chosen.characterName}...',
+        );
+        try {
+          summary.modProfileName = await _switchModsToSave(chosen);
+        } on Exception catch (e) {
+          Fimber.w('Save sync: switching mods failed: $e');
+          summary.errors.add('Switching mods: ${_messageFor(e)}');
+        }
       }
     }
 
@@ -556,24 +587,66 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     if (!isRunning) await _onGameExited();
   }
 
-  List<ModChange> _modProblems(SaveSyncItem item) {
+  /// How the synced save's mods differ from the mods enabled on this PC.
+  List<ModChange> _modChanges(SaveSyncItem item) {
     final mods = item.remoteManifest?.mods ?? [];
     if (mods.isEmpty) return [];
-    final allMods = ref.read(AppState.mods);
-    final variants = ref.read(AppState.modVariants).value ?? [];
     return ModProfileManagerNotifier.computeModProfileChanges(
-          ModProfile.newProfile('', mods),
-          allMods,
-          variants,
-          // Treat every installed mod as enabled; this only asks "is it here".
-          variants,
-        )
-        .where(
-          (c) =>
-              c.changeType == ModChangeType.missingMod ||
-              c.changeType == ModChangeType.missingVariant,
-        )
-        .toList();
+      ModProfile.newProfile('', mods),
+      ref.read(AppState.mods),
+      ref.read(AppState.modVariants).value ?? [],
+      ref.read(AppState.enabledModVariants),
+    );
+  }
+
+  /// Saves the synced save's mod list as a "Save sync: (character)" profile
+  /// (reusing it if it exists) and switches to it, the same way the Mod
+  /// Profiles page does. Writing into the active profile instead would
+  /// overwrite the user's own mod list. Returns the profile name.
+  Future<String> _switchModsToSave(SaveSyncItem item) async {
+    final mods = item.remoteManifest?.mods ?? [];
+    final name = saveSyncModProfileName(item.characterName);
+    final profiles = ref.read(modProfilesProvider.notifier);
+    await ref.read(modProfilesProvider.future);
+
+    late String profileId;
+    await profiles.updateState((current) {
+      final existing = current.modProfiles.firstWhereOrNull(
+        (p) => p.name == name,
+      );
+      if (existing != null) {
+        profileId = existing.id;
+        return current.copyWith(
+          modProfiles: [
+            for (final p in current.modProfiles)
+              p.id == existing.id
+                  ? p.copyWith(
+                      enabledModVariants: mods,
+                      dateModified: DateTime.now(),
+                    )
+                  : p,
+          ],
+        );
+      }
+      final created = ModProfile.newProfile(
+        name,
+        mods,
+        sortOrder:
+            (current.modProfiles.map((p) => p.sortOrder).maxOrNull ?? 0) + 1,
+      );
+      profileId = created.id;
+      return current.copyWith(modProfiles: [...current.modProfiles, created]);
+    });
+
+    await profiles.activateModProfile(profileId, reapplyIfActive: true);
+    // activateModProfile logs failures instead of throwing, so check the result.
+    if (canSwitchModsFor(_modChanges(item))) {
+      throw SaveSyncException(
+        'Some mods could not be switched for ${item.characterName}. '
+        'Check the Mods page.',
+      );
+    }
+    return name;
   }
 
   Future<SaveSyncEngine> _createEngine() async {
