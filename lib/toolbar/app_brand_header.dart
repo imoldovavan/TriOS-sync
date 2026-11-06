@@ -63,7 +63,7 @@ class AppBrandHeader extends ConsumerWidget {
               children: [
                 Text(appName, style: theme.textTheme.titleMedium),
                 Text(
-                  "v${Constants.version}",
+                  "v${Constants.displayVersion}",
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
@@ -79,7 +79,7 @@ class AppBrandHeader extends ConsumerWidget {
               children: [
                 Text(appName, style: theme.textTheme.titleLarge),
                 Text(
-                  "v${Constants.version}",
+                  "v${Constants.displayVersion}",
                   style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
                 ),
               ],

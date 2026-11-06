@@ -12,7 +12,16 @@ class Constants {
 
   static const appName = "TriOS";
   static const chatbotName = "Delta Core";
-  static const appTitle = "$appName v$version";
+  /// The release tag of this sync build, e.g. "1.7.1-savesync-preview04".
+  /// Set by the GitHub release build; empty when built locally.
+  static const syncBuildTag = String.fromEnvironment('TRIOS_SYNC_BUILD');
+
+  /// The version shown to the user. [version] stays unchanged because the
+  /// update check compares against it.
+  static const displayVersion = syncBuildTag == ''
+      ? "$version (sync local build)"
+      : syncBuildTag;
+  static const appTitle = "$appName v$displayVersion";
   static String appSubtitle = [
     "Corporate Toolkit",
     "by Wisp",
