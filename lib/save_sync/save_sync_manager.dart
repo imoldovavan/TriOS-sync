@@ -222,7 +222,12 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
   SaveSyncStatus build() {
     final enabled = ref.watch(appSettings.select((s) => s.saveSyncEnabled));
     final folder = ref.watch(appSettings.select((s) => s.saveSyncFolder));
-    ref.watch(appSettings.select((s) => s.saveSyncSaveNames));
+    // Ticking a save only needs the saves re-read, not a fresh start that
+    // would also re-check every mod folder.
+    ref.listen(
+      appSettings.select((s) => s.saveSyncSaveNames),
+      (_, _) => refresh(includeMods: false),
+    );
     final modsEnabled = ref.watch(
       appSettings.select((s) => s.saveSyncModsEnabled),
     );
@@ -286,7 +291,8 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
       ref.read(appSettings).saveSyncSaveNames.toSet();
 
   /// Re-reads both sides and updates the status. Changes nothing on disk.
-  Future<void> refresh() async {
+  /// [includeMods] false skips the mods and keeps their last results.
+  Future<void> refresh({bool includeMods = true}) async {
     if (!state.isActive) return;
     await _runMutex.protect(() async {
       state = state.copyWith(busyMessage: () => 'Checking saves...');
@@ -294,7 +300,7 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
         final engine = await _createEngine();
         final overview = await engine.loadOverview(_selectedSaveNames);
         state = state.copyWith(overview: overview);
-        await _refreshModOverview();
+        if (includeMods) await _refreshModOverview();
         state = state.copyWith(
           busyMessage: () => null,
           errorMessage: () => null,
