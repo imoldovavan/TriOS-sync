@@ -3,7 +3,7 @@
 ## Before you start
 
 - **Your real mods folder is not used in Part 1.** Part 1 points TriOS at test folders. Don't launch the game during Part 1.
-- Save sync must be set up first (see `openspec/changes/cloud-save-sync/manual-test-plan.md`, Part 1 setup). Mod sync uses the same sync folder.
+- Save sync must be set up first (see `openspec/changes/archive/2026-11-06-cloud-save-sync/manual-test-plan.md`, Part 1 setup). Mod sync uses the same sync folder.
 - Backups of replaced mods are in `<TriOS config folder>/save_sync_backups/mods/`.
 
 ## Part 1: two simulated PCs on one PC
