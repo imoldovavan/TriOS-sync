@@ -179,6 +179,10 @@ class Settings with SettingsMappable {
   /// Save folder names (e.g. `save_foo_123`) the user chose to sync.
   final List<String> saveSyncSaveNames;
 
+  /// Also sync every mod folder and the enabled-mods list through
+  /// [saveSyncFolder]. Only used while [saveSyncEnabled] is on.
+  final bool saveSyncModsEnabled;
+
   // Catalog page — collapsible browser panel and card-click action
   final bool catalogBrowserPanelOpen;
   final double? catalogBrowserPanelWidth;
@@ -354,6 +358,7 @@ class Settings with SettingsMappable {
     this.saveSyncEnabled = false,
     this.saveSyncFolder,
     this.saveSyncSaveNames = const [],
+    this.saveSyncModsEnabled = false,
     this.catalogBrowserPanelOpen = false,
     this.catalogBrowserPanelWidth,
     this.catalogCardClickAction = CatalogCardClickAction.forumDialog,

@@ -370,30 +370,51 @@ class ModProfileManagerNotifier
     bool reapplyIfActive = false,
   }) async {
     Fimber.i("Activating mod profile $modProfileId.");
+    final profile = state.value?.modProfiles.firstWhereOrNull(
+      (profile) => profile.id == modProfileId,
+    );
+    if (profile == null) {
+      Fimber.w("Profile $modProfileId not found.");
+      return;
+    }
+    final activeProfileId = ref.read(
+      appSettings.select((s) => s.activeModProfileId),
+    );
+    if (activeProfileId == modProfileId && !reapplyIfActive) {
+      Fimber.i("Profile $modProfileId is already active.");
+      return;
+    }
+
+    await applyModList(
+      profile.enabledModVariants,
+      description: "mod profile $modProfileId",
+      onApplied: () => ref
+          .read(appSettings.notifier)
+          .update((s) => s.copyWith(activeModProfileId: modProfileId)),
+    );
+  }
+
+  /// Turns mods on and off and switches versions so the enabled mods match
+  /// [mods], the same way activating a profile does. Mods that aren't
+  /// installed are skipped. [onApplied] runs after the mods are switched and
+  /// before mod files are watched again.
+  ///
+  /// Logs failures instead of throwing. Callers that need to know check the
+  /// enabled mods afterwards.
+  Future<void> applyModList(
+    List<ShallowModVariant> mods, {
+    String description = "mod list",
+    void Function()? onApplied,
+  }) async {
     final modVariantsNotifier = ref.read(AppState.modVariants.notifier);
     final modManagerNotifier = ref.read(modManager.notifier);
 
     try {
-      final profile = state.value?.modProfiles.firstWhereOrNull(
-        (profile) => profile.id == modProfileId,
-      );
-      if (profile == null) {
-        Fimber.w("Profile $modProfileId not found.");
-        return;
-      }
-      final activeProfileId = ref.read(
-        appSettings.select((s) => s.activeModProfileId),
-      );
-      if (activeProfileId == modProfileId && !reapplyIfActive) {
-        Fimber.i("Profile $modProfileId is already active.");
-        return;
-      }
-
       final allMods = ref.read(AppState.mods);
       final modVariants = ref.read(AppState.modVariants).value ?? [];
       final currentlyEnabledModVariants = ref.read(AppState.enabledModVariants);
       final changes = computeModProfileChanges(
-        profile,
+        ModProfile.newProfile('', mods),
         allMods,
         modVariants,
         currentlyEnabledModVariants,
@@ -435,17 +456,11 @@ class ModProfileManagerNotifier
       // Fimber.i("here1.");
       await modManagerNotifier.validateModDependencies();
       // Fimber.i("here2.");
-      ref
-          .read(appSettings.notifier)
-          .update((s) => s.copyWith(activeModProfileId: modProfileId));
+      onApplied?.call();
       // Fimber.i("here3.");
-      Fimber.i("Finished activating mod profile $modProfileId.");
+      Fimber.i("Finished applying $description.");
     } catch (e, stack) {
-      Fimber.e(
-        "Failed to activate mod profile $modProfileId.",
-        ex: e,
-        stacktrace: stack,
-      );
+      Fimber.e("Failed to apply $description.", ex: e, stacktrace: stack);
     } finally {
       // Fimber.i("here4.");
       _pauseAutomaticProfileUpdates = false;

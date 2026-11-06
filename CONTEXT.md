@@ -67,3 +67,11 @@ _Avoid_: Play session, sync lock (the lock is the file, not the session)
 **Sync record**:
 What this PC remembers about a save from its last successful sync: the content hash both copies had then, and the manifest. Used to tell which side changed.
 _Avoid_: Sync state, last-sync cache
+
+**Mod sync**:
+The opt-in part of save sync that also copies every folder in the mods folder, and the enabled-mods list, through the sync folder. Mods deleted on one PC are never deleted on the others.
+_Avoid_: Mod upload, mod mirror, mod backup
+
+**Enabled-mods list**:
+In mod sync, the mods turned on and the active version of each, synced as `enabled-mods.json` in the sync folder. TriOS applies it the way it applies a mod profile, so it is not a copy of the game's `enabled_mods.json` file.
+_Avoid_: Enabled mods file (that is the game's `enabled_mods.json`), mod profile (profiles are the user's named lists)

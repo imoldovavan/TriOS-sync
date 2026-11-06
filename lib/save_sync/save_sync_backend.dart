@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:trios/save_sync/cloud_conflict_files.dart';
+import 'package:trios/save_sync/models/mod_sync_manifest.dart';
 import 'package:trios/save_sync/models/save_sync_lock.dart';
 import 'package:trios/save_sync/models/save_sync_manifest.dart';
 
@@ -46,6 +47,50 @@ class RemoteSaveListing {
   };
 }
 
+/// What the sync location holds for mods right now.
+class RemoteModListing {
+  const RemoteModListing({
+    this.manifests = const {},
+    this.archiveNames = const {},
+    this.unreadableManifests = const {},
+    this.conflictCopies = const [],
+    this.enabledModList,
+    this.enabledModListProblem,
+  });
+
+  /// Readable manifests, keyed by mod folder name.
+  final Map<String, ModSyncManifest> manifests;
+
+  /// Mod folder names that have a zip.
+  final Set<String> archiveNames;
+
+  /// Manifests that exist but couldn't be read, keyed by mod folder name,
+  /// with the reason.
+  final Map<String, String> unreadableManifests;
+
+  /// Cloud-client conflict copies under `mods/` and of `enabled-mods.json`.
+  final List<CloudConflictCopy> conflictCopies;
+
+  /// Null if no PC has written the list yet, or it couldn't be read.
+  final EnabledModListManifest? enabledModList;
+
+  /// Why the list couldn't be read, if it exists but is damaged.
+  final String? enabledModListProblem;
+
+  /// Mod folder names that have conflict copies.
+  Set<String> get modNamesWithConflictCopies => {
+    for (final copy in conflictCopies)
+      ?saveFolderNameFromSyncFileName(copy.originalFileName),
+  };
+
+  bool get enabledModListHasConflictCopy => conflictCopies.any(
+    (copy) => copy.originalFileName == enabledModListFileName,
+  );
+}
+
+/// Name of the synced enabled-mods list at the root of the sync location.
+const enabledModListFileName = 'enabled-mods.json';
+
 /// Returns the save folder name for a file in the sync location's `saves`
 /// folder (`<save>.zip` or `<save>.manifest.json`), or null for other files.
 String? saveFolderNameFromSyncFileName(String fileName) {
@@ -89,4 +134,21 @@ abstract class SaveSyncBackend {
   /// Moves a cloud client's conflict copy to [destination] on this PC,
   /// removing it from the sync location.
   Future<void> takeConflictCopy(CloudConflictCopy copy, File destination);
+
+  // Mods. Same rules as saves, under `mods/` instead of `saves/`.
+
+  Future<RemoteModListing> listMods();
+
+  Future<void> downloadModArchive(String folderName, File destination);
+
+  Future<void> uploadMod(File zip, ModSyncManifest manifest);
+
+  /// Moves the mod's zip and manifest into [destinationFolder] on this PC,
+  /// removing them from the sync location.
+  Future<void> takeMod(String folderName, Directory destinationFolder);
+
+  Future<void> writeEnabledModList(EnabledModListManifest list);
+
+  /// Like [takeConflictCopy], for copies listed by [listMods].
+  Future<void> takeModConflictCopy(CloudConflictCopy copy, File destination);
 }

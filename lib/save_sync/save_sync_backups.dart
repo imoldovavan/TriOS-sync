@@ -9,7 +9,8 @@ enum SaveSyncBackupReason {
   beforePull('before-pull'),
   conflictLocal('conflict-local'),
   conflictSynced('conflict-synced'),
-  cloudConflictCopy('cloud-conflict-copy');
+  cloudConflictCopy('cloud-conflict-copy'),
+  removedFromSyncFolder('removed-from-sync-folder');
 
   const SaveSyncBackupReason(this.folderSuffix);
 

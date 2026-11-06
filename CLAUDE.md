@@ -74,7 +74,7 @@ Feature work is planned with OpenSpec, under `openspec/`:
   - `mod_records/` — persistent per-mod records of where a mod came from (catalog, version checker, forum).
   - `mod_tag_manager/` — user-defined mod categories/tags with icons and colors.
   - `mod_profiles/` — save/load named sets of enabled mods; can read enabled-mod lists from game saves.
-  - `save_sync/` — opt-in syncing of chosen saves between PCs through a folder a cloud client keeps in sync. `SaveSyncEngine` does the work with no UI; `SaveSyncNotifier` runs it before launch and after the game closes. The folder sits behind `SaveSyncBackend` so API services can be added later. Off by default.
+  - `save_sync/` — opt-in syncing of chosen saves between PCs through a folder a cloud client keeps in sync. `SaveSyncEngine` does the work with no UI; `SaveSyncNotifier` runs it before launch and after the game closes. The folder sits behind `SaveSyncBackend` so API services can be added later. Off by default. Mod sync (`ModSyncEngine`, its own checkbox) also syncs every mod folder and the enabled-mods list; it runs before saves and never while the game is running.
   - `descriptions/` — loads and merges `descriptions.csv` across vanilla + mods for viewer/codex flavor text.
   - `changelogs/` — fetches and caches per-mod changelogs via version-checker URLs.
   - `launcher/`, `vmparams/` — game launch with pre-launch checks; `vmparams` RAM editing.

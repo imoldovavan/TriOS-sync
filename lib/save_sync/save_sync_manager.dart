@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:trios/mod_profiles/mod_profiles_manager.dart';
 import 'package:trios/mod_profiles/models/mod_profile.dart';
 import 'package:trios/save_sync/folder_save_sync_backend.dart';
+import 'package:trios/save_sync/mod_sync_dialogs.dart';
+import 'package:trios/save_sync/mod_sync_engine.dart';
 import 'package:trios/save_sync/models/save_sync_state.dart';
 import 'package:trios/save_sync/save_sync_backend.dart';
 import 'package:trios/save_sync/save_sync_backups.dart';
@@ -30,6 +32,9 @@ Directory get saveSyncBackupsFolder =>
 
 const _cloudUploadNote =
     'Synced to folder. Your cloud client uploads it to other PCs.';
+
+/// At launch, a mod sync that would copy more than this asks first.
+const _largeModSyncBytes = 500 * 1024 * 1024;
 
 /// A launch that hasn't started the game within this time closes its sync
 /// session (e.g. the launch precheck was cancelled).
@@ -101,6 +106,8 @@ class SaveSyncStatus {
     this.lastRunAt,
     this.isSessionOpen = false,
     this.savesFolderMismatch,
+    this.modsEnabled = false,
+    this.modOverview,
   });
 
   /// False when sync is off or can't run (no folder, no saves folder, or
@@ -122,10 +129,17 @@ class SaveSyncStatus {
   /// True between launch and game exit, while this PC's lock file exists.
   final bool isSessionOpen;
 
+  /// "Also sync the mods folder" is ticked.
+  final bool modsEnabled;
+
+  /// Null until the mods were checked, or when mod sync is off.
+  final ModSyncOverview? modOverview;
+
   bool get isBusy => busyMessage != null;
 
   SaveSyncStatus copyWith({
     SaveSyncOverview? overview,
+    ModSyncOverview? modOverview,
     ValueGetter<String?>? busyMessage,
     ValueGetter<String?>? errorMessage,
     ValueGetter<String?>? lastMessage,
@@ -141,6 +155,8 @@ class SaveSyncStatus {
     lastRunAt: lastRunAt ?? this.lastRunAt,
     isSessionOpen: isSessionOpen ?? this.isSessionOpen,
     savesFolderMismatch: savesFolderMismatch,
+    modsEnabled: modsEnabled,
+    modOverview: modOverview ?? this.modOverview,
   );
 }
 
@@ -150,22 +166,38 @@ enum _SyncOutcome { done, cancelLaunch }
 class _SyncRunSummary {
   int pushed = 0;
   int pulled = 0;
+  int modsPushed = 0;
+  int modsPulled = 0;
+  bool enabledListPushed = false;
+  bool enabledListApplied = false;
 
   /// Set when mods were switched to match a pulled save.
   String? modProfileName;
+
+  /// Shown after the counts, e.g. why mods were skipped.
+  final notes = <String>[];
   final errors = <String>[];
 
   String describe() {
+    String count(int n, String one, String many) => '$n ${n == 1 ? one : many}';
     final parts = [
-      if (pushed > 0) 'Wrote $pushed ${pushed == 1 ? 'save' : 'saves'}',
-      if (pulled > 0) 'pulled $pulled ${pulled == 1 ? 'save' : 'saves'}',
+      if (pushed > 0) 'Wrote ${count(pushed, 'save', 'saves')}',
+      if (pulled > 0) 'pulled ${count(pulled, 'save', 'saves')}',
+      if (modsPushed > 0) 'wrote ${count(modsPushed, 'mod', 'mods')}',
+      if (modsPulled > 0) 'pulled ${count(modsPulled, 'mod', 'mods')}',
+      if (enabledListPushed) 'wrote the enabled-mods list',
+      if (enabledListApplied) 'applied the synced enabled-mods list',
     ];
-    if (parts.isEmpty) return 'Everything was already up to date.';
-    var text = '${parts.join(', ')}.';
+    var text = parts.isEmpty
+        ? 'Everything was already up to date.'
+        : '${parts.join(', ')}.';
+    if (parts.isNotEmpty) text = text[0].toUpperCase() + text.substring(1);
     if (modProfileName != null) {
       text += ' Switched mods to the profile "$modProfileName".';
     }
-    return pushed > 0 ? '$text $_cloudUploadNote' : text;
+    if (notes.isNotEmpty) text += ' ${notes.join(' ')}';
+    final wroteAnything = pushed > 0 || modsPushed > 0 || enabledListPushed;
+    return wroteAnything ? '$text $_cloudUploadNote' : text;
   }
 }
 
@@ -191,6 +223,10 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     final enabled = ref.watch(appSettings.select((s) => s.saveSyncEnabled));
     final folder = ref.watch(appSettings.select((s) => s.saveSyncFolder));
     ref.watch(appSettings.select((s) => s.saveSyncSaveNames));
+    final modsEnabled = ref.watch(
+      appSettings.select((s) => s.saveSyncModsEnabled),
+    );
+    ref.watch(AppState.modsFolder);
     final savesFolder = ref.watch(AppState.savesFolder).value;
 
     ref.listen(AppState.isGameRunning, (previous, next) {
@@ -242,6 +278,7 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
       isActive: true,
       busyMessage: 'Checking saves...',
       isSessionOpen: _isSessionOpen,
+      modsEnabled: modsEnabled,
     );
   }
 
@@ -256,8 +293,9 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
       try {
         final engine = await _createEngine();
         final overview = await engine.loadOverview(_selectedSaveNames);
+        state = state.copyWith(overview: overview);
+        await _refreshModOverview();
         state = state.copyWith(
-          overview: overview,
           busyMessage: () => null,
           errorMessage: () => null,
         );
@@ -265,6 +303,21 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
         _setError(e, st);
       }
     });
+  }
+
+  /// Re-reads the mods and the enabled-mods list, if mod sync is on.
+  Future<void> _refreshModOverview() async {
+    if (!state.modsEnabled) return;
+    final enabledMods = await _localEnabledMods();
+    if (enabledMods == null) return;
+    final engine = await _createModEngine();
+    state = state.copyWith(
+      modOverview: await engine.loadOverview(
+        enabledMods,
+        onProgress: (message) =>
+            state = state.copyWith(busyMessage: () => message),
+      ),
+    );
   }
 
   void setSaveSelected(String saveFolderName, bool selected) {
@@ -343,6 +396,7 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
           allowPull: true,
           isLaunch: true,
           summary: summary,
+          onProgress: progress.update,
         );
         if (outcome == _SyncOutcome.cancelLaunch) return false;
 
@@ -453,6 +507,109 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     });
   }
 
+  /// Turns "Also sync the mods folder" on or off.
+  void setModsEnabled(bool enabled) => ref
+      .read(appSettings.notifier)
+      .update((s) => s.copyWith(saveSyncModsEnabled: enabled));
+
+  /// Puts back a mod that is missing on this PC, from the sync folder.
+  Future<void> restoreMod(ModSyncItem item) =>
+      _modAction('Restoring the mod ${item.folderName}...', (engine) async {
+        await engine.pull(item);
+        await ref.read(AppState.modVariants.notifier).reloadModVariants();
+        return 'Restored the mod ${item.folderName} from the sync folder.';
+      });
+
+  /// Moves a mod's zip and manifest out of the sync folder into backups.
+  /// Other PCs that still have the mod write it back.
+  Future<void> removeModFromSyncFolder(ModSyncItem item) => _modAction(
+    'Removing the mod ${item.folderName} from the sync folder...',
+    (engine) async {
+      await engine.removeFromSyncFolder(item);
+      return 'Removed the mod ${item.folderName} from the sync folder. Other '
+          'PCs that still have it will write it back.';
+    },
+  );
+
+  /// Opens the conflict dialog for one mod from the settings list.
+  Future<void> resolveModConflict(
+    BuildContext context,
+    ModSyncItem item,
+  ) async {
+    final choice = await showModSyncConflictDialog(context, item);
+    if (choice == ModSyncConflictChoice.skip) return;
+    await _modAction('Resolving conflict...', (engine) async {
+      await engine.resolveConflict(item, choice);
+      if (choice == ModSyncConflictChoice.keepSynced) {
+        await ref.read(AppState.modVariants.notifier).reloadModVariants();
+      }
+      return null;
+    });
+  }
+
+  /// Opens the conflict dialog for the enabled-mods list.
+  Future<void> resolveEnabledListConflict(BuildContext context) async {
+    final list = state.modOverview?.enabledList;
+    if (list == null) return;
+    final choice = await showEnabledListConflictDialog(context, list);
+    if (choice == ModSyncConflictChoice.skip) return;
+    await _modAction('Resolving conflict...', (engine) async {
+      final summary = _SyncRunSummary();
+      if (choice == ModSyncConflictChoice.keepLocal) {
+        await engine.keepLocalEnabledList(list);
+        summary.enabledListPushed = true;
+      } else {
+        await _applyEnabledList(engine, list, summary);
+      }
+      if (summary.errors.isNotEmpty) {
+        throw SaveSyncException(summary.errors.join('\n'));
+      }
+      return summary.describe();
+    });
+  }
+
+  /// Moves cloud-client conflict copies of mods into local backups.
+  Future<void> moveModConflictCopiesToBackups() async {
+    final copies = state.modOverview?.conflictCopies ?? [];
+    if (copies.isEmpty) return;
+    await _modAction('Moving conflict copies to backups...', (engine) async {
+      await engine.takeConflictCopies(copies);
+      return 'Moved ${copies.length} conflict '
+          '${copies.length == 1 ? 'copy' : 'copies'} to backups.';
+    });
+  }
+
+  /// Runs one mod action from the settings group, then re-reads the mods.
+  /// [action] returns the message to show, or null.
+  Future<void> _modAction(
+    String busyMessage,
+    Future<String?> Function(ModSyncEngine engine) action,
+  ) async {
+    if (ref.read(AppState.isGameRunning).value == true) {
+      state = state.copyWith(
+        errorMessage: () =>
+            'Starsector is running. Mods are synced when it '
+            'is not running.',
+      );
+      return;
+    }
+    await _runMutex.protect(() async {
+      try {
+        state = state.copyWith(busyMessage: () => busyMessage);
+        final message = await action(await _createModEngine());
+        await _refreshModOverview();
+        state = state.copyWith(
+          busyMessage: () => null,
+          errorMessage: () => null,
+          lastMessage: message == null ? null : () => message,
+          lastRunAt: DateTime.now(),
+        );
+      } catch (e, st) {
+        _setError(e, st);
+      }
+    });
+  }
+
   /// Opens the conflict dialog for one save from the settings list.
   Future<void> resolveConflict(BuildContext context, SaveSyncItem item) async {
     final choice = await showSaveSyncConflictDialog(context, item);
@@ -484,9 +641,32 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
     required bool allowPull,
     required bool isLaunch,
     _SyncRunSummary? summary,
+    void Function(String message)? onProgress,
   }) async {
     summary ??= _SyncRunSummary();
-    state = state.copyWith(busyMessage: () => 'Syncing saves...');
+    void progress(String message) {
+      state = state.copyWith(busyMessage: () => message);
+      onProgress?.call(message);
+    }
+
+    // Mods first, then the enabled-mods list, then saves: the save mod check
+    // should compare against the mods this PC will actually use.
+    if (state.modsEnabled) {
+      try {
+        await _runModSync(
+          context,
+          allowPull: allowPull,
+          isLaunch: isLaunch,
+          summary: summary,
+          progress: progress,
+        );
+      } on Exception catch (e) {
+        Fimber.w('Mod sync failed: $e');
+        summary.errors.add('Mods: ${_messageFor(e)}');
+      }
+    }
+
+    progress('Syncing saves...');
     final engine = await _createEngine();
     final overview = await engine.loadOverview(_selectedSaveNames);
     // Pulled saves the user chose "switch mods" for. Applied once at the end,
@@ -520,8 +700,7 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
                   return _SyncOutcome.cancelLaunch;
                 }
                 if (choice == SaveSyncModCheckChoice.skipSave) continue;
-                switchMods =
-                    choice == SaveSyncModCheckChoice.pullAndSwitchMods;
+                switchMods = choice == SaveSyncModCheckChoice.pullAndSwitchMods;
               }
             }
             state = state.copyWith(
@@ -562,6 +741,13 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
 
     state = state.copyWith(
       overview: await engine.loadOverview(_selectedSaveNames),
+    );
+    try {
+      await _refreshModOverview();
+    } on Exception catch (e) {
+      summary.errors.add('Mods: ${_messageFor(e)}');
+    }
+    state = state.copyWith(
       busyMessage: () => null,
       errorMessage: () =>
           summary!.errors.isEmpty ? null : summary.errors.join('\n'),
@@ -569,6 +755,173 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
       lastRunAt: DateTime.now(),
     );
     return _SyncOutcome.done;
+  }
+
+  /// Syncs every mod folder, then the enabled-mods list. Pulls only when
+  /// [allowPull]. Conflicts are asked about only when a [context] is given.
+  /// Errors for one mod don't stop the others; they go into [summary].
+  Future<void> _runModSync(
+    BuildContext? context, {
+    required bool allowPull,
+    required bool isLaunch,
+    required _SyncRunSummary summary,
+    required void Function(String message) progress,
+  }) async {
+    if (ref.read(AppState.isGameRunning).value == true) {
+      summary.notes.add('Mods are synced when the game is not running.');
+      return;
+    }
+
+    final enabledMods = await _localEnabledMods();
+    if (enabledMods == null) {
+      summary.notes.add(
+        'Mods were not synced: TriOS was still reading the mods folder.',
+      );
+      return;
+    }
+
+    final engine = await _createModEngine();
+    final overview = await engine.loadOverview(
+      enabledMods,
+      onProgress: progress,
+    );
+    final toPull = allowPull
+        ? overview.items
+              .where((i) => i.status == SaveSyncItemStatus.willPull)
+              .toList()
+        : <ModSyncItem>[];
+    final toPush = overview.items
+        .where((i) => i.status == SaveSyncItemStatus.willPush)
+        .toList();
+
+    final bytesToCopy =
+        toPull.map((i) => i.remoteManifest?.archiveSizeBytes ?? 0).sum +
+        toPush.map((i) => i.localSizeBytes ?? 0).sum;
+    if (isLaunch && bytesToCopy > _largeModSyncBytes) {
+      if (context == null || !context.mounted) return;
+      final syncNow = await showLargeModSyncDialog(
+        context,
+        modCount: toPull.length + toPush.length,
+        totalBytes: bytesToCopy,
+      );
+      if (!syncNow) {
+        summary.notes.add('Mods were not synced this time.');
+        return;
+      }
+    }
+
+    // Pulls before pushes, so a mod both sides need is settled first.
+    for (final (index, item) in toPull.indexed) {
+      progress(
+        'Pulling mod ${index + 1} of ${toPull.length}: '
+        '${item.remoteManifest?.displayName ?? item.folderName}',
+      );
+      try {
+        await engine.pull(item);
+        summary.modsPulled++;
+      } on Exception catch (e) {
+        Fimber.w('Mod sync: ${item.folderName} failed: $e');
+        summary.errors.add('Mod ${item.folderName}: ${_messageFor(e)}');
+      }
+    }
+    for (final (index, item) in toPush.indexed) {
+      progress(
+        'Writing mod ${index + 1} of ${toPush.length}: ${item.folderName}',
+      );
+      try {
+        await engine.push(item.folderName);
+        summary.modsPushed++;
+      } on Exception catch (e) {
+        Fimber.w('Mod sync: ${item.folderName} failed: $e');
+        summary.errors.add('Mod ${item.folderName}: ${_messageFor(e)}');
+      }
+    }
+    for (final item in overview.items) {
+      try {
+        switch (item.status) {
+          case SaveSyncItemStatus.upToDate:
+            await engine.recordUpToDate(item);
+          case SaveSyncItemStatus.conflict:
+            if (context == null || !context.mounted) continue;
+            final choice = await showModSyncConflictDialog(context, item);
+            if (choice == ModSyncConflictChoice.keepSynced && !allowPull) {
+              continue;
+            }
+            progress('Resolving conflict for the mod ${item.folderName}...');
+            await engine.resolveConflict(item, choice);
+          default:
+            break;
+        }
+      } on Exception catch (e) {
+        Fimber.w('Mod sync: ${item.folderName} failed: $e');
+        summary.errors.add('Mod ${item.folderName}: ${_messageFor(e)}');
+      }
+    }
+
+    if (summary.modsPulled > 0) {
+      progress('Reloading mods...');
+      await ref.read(AppState.modVariants.notifier).reloadModVariants();
+    }
+
+    progress('Syncing the enabled-mods list...');
+    final enabledAfterPulls = await _localEnabledMods();
+    if (enabledAfterPulls == null) return;
+    final list = await engine.loadEnabledList(enabledAfterPulls);
+    try {
+      switch (list.status) {
+        case SaveSyncItemStatus.upToDate:
+          await engine.recordEnabledListSynced(list);
+        case SaveSyncItemStatus.willPush:
+          await engine.pushEnabledList(list.localMods);
+          summary.enabledListPushed = true;
+        case SaveSyncItemStatus.willPull:
+          if (!allowPull) break;
+          await _applyEnabledList(engine, list, summary);
+        case SaveSyncItemStatus.conflict:
+          if (context == null || !context.mounted) break;
+          final choice = await showEnabledListConflictDialog(context, list);
+          switch (choice) {
+            case ModSyncConflictChoice.keepLocal:
+              await engine.keepLocalEnabledList(list);
+              summary.enabledListPushed = true;
+            case ModSyncConflictChoice.keepSynced:
+              if (allowPull) await _applyEnabledList(engine, list, summary);
+            case ModSyncConflictChoice.skip:
+              break;
+          }
+        default:
+          break;
+      }
+    } on Exception catch (e) {
+      Fimber.w('Mod sync: enabled-mods list failed: $e');
+      summary.errors.add('Enabled-mods list: ${_messageFor(e)}');
+    }
+  }
+
+  /// Turns mods on and off to match the synced list, the same way activating
+  /// a mod profile does, without changing which profile is chosen. Mods that
+  /// aren't installed here are reported as an error.
+  Future<void> _applyEnabledList(
+    ModSyncEngine engine,
+    EnabledModListItem list,
+    _SyncRunSummary summary,
+  ) async {
+    final mods = list.remote?.mods ?? [];
+    await ref
+        .read(modProfilesProvider.notifier)
+        .applyModList(mods, description: 'the synced enabled-mods list');
+    await engine.recordEnabledListSynced(list);
+    summary.enabledListApplied = true;
+
+    final missing = _modChangesFor(mods)
+        .where((c) => c.changeType == ModChangeType.missingMod)
+        .toList();
+    if (missing.isNotEmpty) {
+      summary.errors.add(
+        'Enabled-mods list: these mods are not installed on this PC: '
+        '${missing.map((c) => c.variantAsShallowMod?.nameOrId ?? c.modId).join(', ')}.',
+      );
+    }
   }
 
   Future<void> _openSession(SaveSyncEngine engine) async {
@@ -666,12 +1019,29 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
   List<ModChange> _modChanges(SaveSyncItem item) {
     final mods = item.remoteManifest?.mods ?? [];
     if (mods.isEmpty) return [];
-    return ModProfileManagerNotifier.computeModProfileChanges(
-      ModProfile.newProfile('', mods),
-      ref.read(AppState.mods),
-      ref.read(AppState.modVariants).value ?? [],
-      ref.read(AppState.enabledModVariants),
-    );
+    return _modChangesFor(mods);
+  }
+
+  /// How [mods] differ from the mods enabled on this PC.
+  List<ModChange> _modChangesFor(List<ShallowModVariant> mods) =>
+      ModProfileManagerNotifier.computeModProfileChanges(
+        ModProfile.newProfile('', mods),
+        ref.read(AppState.mods),
+        ref.read(AppState.modVariants).value ?? [],
+        ref.read(AppState.enabledModVariants),
+      );
+
+  /// The mods enabled on this PC, with the active version of each. Null
+  /// until TriOS has read the mods folder: reading earlier would see no mods
+  /// and could push an empty list to the other PCs.
+  Future<List<ShallowModVariant>?> _localEnabledMods() async {
+    await ref.read(AppState.modVariants.future);
+    await ref.read(AppState.enabledModsFile.future);
+    if (!ref.read(AppState.modsHaveLoaded)) return null;
+    return ref
+        .read(AppState.enabledModVariants)
+        .map(ShallowModVariant.fromModVariant)
+        .toList();
   }
 
   /// Saves the synced save's mod list as a "Save sync: (character)" profile
@@ -741,6 +1111,29 @@ class SaveSyncNotifier extends Notifier<SaveSyncStatus> {
         p.join(Directory.systemTemp.path, 'trios_save_sync'),
       ),
       gameVersion: ref.read(AppState.starsectorVersion).value,
+      triosVersion: Constants.version,
+    );
+  }
+
+  Future<ModSyncEngine> _createModEngine() async {
+    final folder = ref.read(appSettings).saveSyncFolder;
+    final modsFolder = await ref.read(AppState.modsFolder.future);
+    if (folder == null || modsFolder == null) {
+      throw SaveSyncException(
+        'Mod sync is not set up: TriOS could not find the mods folder.',
+      );
+    }
+    return ModSyncEngine(
+      backend: FolderSaveSyncBackend(folder),
+      modsFolder: modsFolder,
+      backups: SaveSyncBackups(
+        Directory(p.join(saveSyncBackupsFolder.path, 'mods')),
+      ),
+      machine: SaveSyncMachine.current(await _machineId()),
+      stateStore: _RiverpodSaveSyncStateStore(ref),
+      tempFolder: Directory(
+        p.join(Directory.systemTemp.path, 'trios_save_sync'),
+      ),
       triosVersion: Constants.version,
     );
   }

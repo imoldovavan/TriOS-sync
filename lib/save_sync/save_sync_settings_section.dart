@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:trios/save_sync/mod_sync_dialogs.dart';
+import 'package:trios/save_sync/mod_sync_section.dart';
 import 'package:trios/save_sync/save_details_tooltip.dart';
 import 'package:trios/save_sync/save_sync_engine.dart';
 import 'package:trios/save_sync/save_sync_manager.dart';
@@ -9,6 +14,7 @@ import 'package:trios/trios/settings/app_settings_logic.dart';
 import 'package:trios/utils/extensions.dart';
 import 'package:trios/utils/relative_timestamp.dart';
 import 'package:trios/widgets/checkbox_with_label.dart';
+import 'package:trios/widgets/disable.dart';
 import 'package:trios/widgets/moving_tooltip.dart';
 
 /// The "Save Sync" group on the Settings page.
@@ -94,14 +100,15 @@ class SaveSyncSettingsSection extends ConsumerWidget {
                 MovingTooltipWidget.text(
                   message:
                       'Anything save sync replaced is kept here:\n'
-                      '${saveSyncBackupsFolder.path}',
+                      '${saveSyncBackupsFolder.path}\n'
+                      'Nothing in it is deleted automatically.',
                   child: OutlinedButton.icon(
                     onPressed: () {
                       saveSyncBackupsFolder.createSync(recursive: true);
                       saveSyncBackupsFolder.openInExplorer();
                     },
                     icon: const Icon(Icons.folder_open),
-                    label: const Text('Open backups folder'),
+                    label: _BackupsButtonLabel(lastRunAt: status.lastRunAt),
                   ),
                 ),
                 if (status.overview?.conflictCopies.isNotEmpty == true)
@@ -154,6 +161,26 @@ class SaveSyncSettingsSection extends ConsumerWidget {
               ),
             if (status.overview != null)
               _SaveList(items: status.overview!.items, isBusy: status.isBusy),
+            MovingTooltipWidget.text(
+              message:
+                  'Copies every folder in the mods folder, and which mods are '
+                  'turned on, through the same sync folder. The first sync '
+                  'writes all mods, which can take many minutes. Mods deleted '
+                  'on one PC are never deleted on the others.',
+              child: Disable(
+                isEnabled: !status.isBusy,
+                child: CheckboxWithLabel(
+                  value: status.modsEnabled,
+                  label: 'Also sync the mods folder',
+                  onChanged: (value) => notifier.setModsEnabled(value ?? false),
+                ),
+              ),
+            ),
+            if (status.modsEnabled)
+              ModSyncSection(
+                overview: status.modOverview,
+                isBusy: status.isBusy,
+              ),
           ],
         ],
       ],
@@ -333,7 +360,10 @@ class _SaveList extends ConsumerWidget {
                                 Text(
                                   item.status.label,
                                   style: TextStyle(
-                                    color: _statusColor(theme, item),
+                                    color: saveSyncStatusColor(
+                                      theme,
+                                      item.status,
+                                    ),
                                   ),
                                 ),
                                 if (item.problem != null)
@@ -390,19 +420,69 @@ class _SaveList extends ConsumerWidget {
             '${manifest.syncedAt.toLocal().relativeTimestamp()}.',
     ].join(' ');
   }
+}
 
-  Color? _statusColor(ThemeData theme, SaveSyncItem item) =>
-      switch (item.status) {
-        SaveSyncItemStatus.upToDate => theme.statusColors.success,
-        SaveSyncItemStatus.willPush ||
-        SaveSyncItemStatus.willPull ||
-        SaveSyncItemStatus.waitingForCloud => theme.statusColors.info,
-        SaveSyncItemStatus.missingLocally ||
-        SaveSyncItemStatus.notFound => theme.statusColors.warning,
-        SaveSyncItemStatus.conflict ||
-        SaveSyncItemStatus.cloudConflictCopy ||
-        SaveSyncItemStatus.nameProblem ||
-        SaveSyncItemStatus.error => theme.colorScheme.error,
-        SaveSyncItemStatus.notSelected => null,
-      };
+/// Text color for a save or mod status.
+Color? saveSyncStatusColor(ThemeData theme, SaveSyncItemStatus status) =>
+    switch (status) {
+      SaveSyncItemStatus.upToDate => theme.statusColors.success,
+      SaveSyncItemStatus.willPush ||
+      SaveSyncItemStatus.willPull ||
+      SaveSyncItemStatus.waitingForCloud => theme.statusColors.info,
+      SaveSyncItemStatus.missingLocally ||
+      SaveSyncItemStatus.notFound => theme.statusColors.warning,
+      SaveSyncItemStatus.conflict ||
+      SaveSyncItemStatus.cloudConflictCopy ||
+      SaveSyncItemStatus.nameProblem ||
+      SaveSyncItemStatus.error => theme.colorScheme.error,
+      SaveSyncItemStatus.notSelected => null,
+    };
+
+/// "Open backups folder (1.2 GB)". The size is worked out in the background
+/// and again after each sync run, because mod backups can grow large.
+class _BackupsButtonLabel extends StatefulWidget {
+  const _BackupsButtonLabel({required this.lastRunAt});
+
+  final DateTime? lastRunAt;
+
+  @override
+  State<_BackupsButtonLabel> createState() => _BackupsButtonLabelState();
+}
+
+class _BackupsButtonLabelState extends State<_BackupsButtonLabel> {
+  late Future<int> _size = _folderSize(saveSyncBackupsFolder);
+
+  @override
+  void didUpdateWidget(covariant _BackupsButtonLabel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lastRunAt != widget.lastRunAt) {
+      _size = _folderSize(saveSyncBackupsFolder);
+    }
+  }
+
+  static Future<int> _folderSize(Directory folder) {
+    final path = folder.path;
+    return Isolate.run(() {
+      final dir = Directory(path);
+      if (!dir.existsSync()) return 0;
+      var total = 0;
+      for (final file in dir.listSync(recursive: true).whereType<File>()) {
+        total += file.lengthSync();
+      }
+      return total;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder(
+    future: _size,
+    builder: (context, snapshot) {
+      final bytes = snapshot.data ?? 0;
+      return Text(
+        bytes > 0
+            ? 'Open backups folder (${modSyncSizeText(bytes)})'
+            : 'Open backups folder',
+      );
+    },
+  );
 }

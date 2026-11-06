@@ -978,6 +978,13 @@ class SettingsMapper extends ClassMapperBase<Settings> {
     opt: true,
     def: const [],
   );
+  static bool _$saveSyncModsEnabled(Settings v) => v.saveSyncModsEnabled;
+  static const Field<Settings, bool> _f$saveSyncModsEnabled = Field(
+    'saveSyncModsEnabled',
+    _$saveSyncModsEnabled,
+    opt: true,
+    def: false,
+  );
   static bool _$catalogBrowserPanelOpen(Settings v) =>
       v.catalogBrowserPanelOpen;
   static const Field<Settings, bool> _f$catalogBrowserPanelOpen = Field(
@@ -1329,6 +1336,7 @@ class SettingsMapper extends ClassMapperBase<Settings> {
     #saveSyncEnabled: _f$saveSyncEnabled,
     #saveSyncFolder: _f$saveSyncFolder,
     #saveSyncSaveNames: _f$saveSyncSaveNames,
+    #saveSyncModsEnabled: _f$saveSyncModsEnabled,
     #catalogBrowserPanelOpen: _f$catalogBrowserPanelOpen,
     #catalogBrowserPanelWidth: _f$catalogBrowserPanelWidth,
     #catalogCardClickAction: _f$catalogCardClickAction,
@@ -1456,6 +1464,7 @@ class SettingsMapper extends ClassMapperBase<Settings> {
       saveSyncEnabled: data.dec(_f$saveSyncEnabled),
       saveSyncFolder: data.dec(_f$saveSyncFolder),
       saveSyncSaveNames: data.dec(_f$saveSyncSaveNames),
+      saveSyncModsEnabled: data.dec(_f$saveSyncModsEnabled),
       catalogBrowserPanelOpen: data.dec(_f$catalogBrowserPanelOpen),
       catalogBrowserPanelWidth: data.dec(_f$catalogBrowserPanelWidth),
       catalogCardClickAction: data.dec(_f$catalogCardClickAction),
@@ -1724,6 +1733,7 @@ abstract class SettingsCopyWith<$R, $In extends Settings, $Out>
     bool? saveSyncEnabled,
     Directory? saveSyncFolder,
     List<String>? saveSyncSaveNames,
+    bool? saveSyncModsEnabled,
     bool? catalogBrowserPanelOpen,
     double? catalogBrowserPanelWidth,
     CatalogCardClickAction? catalogCardClickAction,
@@ -2038,6 +2048,7 @@ class _SettingsCopyWithImpl<$R, $Out>
     bool? saveSyncEnabled,
     Object? saveSyncFolder = $none,
     List<String>? saveSyncSaveNames,
+    bool? saveSyncModsEnabled,
     bool? catalogBrowserPanelOpen,
     Object? catalogBrowserPanelWidth = $none,
     CatalogCardClickAction? catalogCardClickAction,
@@ -2179,6 +2190,8 @@ class _SettingsCopyWithImpl<$R, $Out>
       if (saveSyncEnabled != null) #saveSyncEnabled: saveSyncEnabled,
       if (saveSyncFolder != $none) #saveSyncFolder: saveSyncFolder,
       if (saveSyncSaveNames != null) #saveSyncSaveNames: saveSyncSaveNames,
+      if (saveSyncModsEnabled != null)
+        #saveSyncModsEnabled: saveSyncModsEnabled,
       if (catalogBrowserPanelOpen != null)
         #catalogBrowserPanelOpen: catalogBrowserPanelOpen,
       if (catalogBrowserPanelWidth != $none)
@@ -2442,6 +2455,10 @@ class _SettingsCopyWithImpl<$R, $Out>
     saveSyncSaveNames: data.get(
       #saveSyncSaveNames,
       or: $value.saveSyncSaveNames,
+    ),
+    saveSyncModsEnabled: data.get(
+      #saveSyncModsEnabled,
+      or: $value.saveSyncModsEnabled,
     ),
     catalogBrowserPanelOpen: data.get(
       #catalogBrowserPanelOpen,
