@@ -22,6 +22,13 @@ class Constants {
       ? "$version (sync local build)"
       : syncBuildTag;
   static const appTitle = "$appName v$displayVersion";
+
+  /// The version the update check compares against the newest release.
+  static const updateCheckVersion = syncBuildTag == '' ? version : syncBuildTag;
+
+  /// Where TriOS looks for updates. The sync build updates from its own fork,
+  /// so an update never replaces it with a TriOS that has no save sync.
+  static const updateGithubRepo = "imoldovavan/TriOS-sync";
   static String appSubtitle = [
     "Corporate Toolkit",
     "by Wisp",
@@ -122,10 +129,10 @@ class Constants {
 
   /// Hardcoded per_page.
   static const String githubLatestRelease =
-      "$githubBase/repos/wispborne/trios/releases?per_page=100";
+      "$githubBase/repos/$updateGithubRepo/releases?per_page=100";
 
   static const String githubReleasesUrl =
-      "https://github.com/wispborne/trios/releases";
+      "https://github.com/$updateGithubRepo/releases";
 
   /// Warning: DON'T ADD ANYTHING TO THIS DIRECTLY. It will mutate the shared instance.
   /// Creating a new one each time is expensive, and hardcoding the pattern will hardcode the locale.

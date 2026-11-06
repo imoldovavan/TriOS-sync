@@ -1258,11 +1258,11 @@ class _CheckForUpdatesButtonState extends ConsumerState<CheckForUpdatesButton> {
             content: const Text("No new release found"),
           );
         } else if (Version.parse(release.tagName, sanitizeInput: true) <=
-            Version.parse(Constants.version, sanitizeInput: true)) {
+            Version.parse(Constants.updateCheckVersion, sanitizeInput: true)) {
           showSnackBar(
             context: context,
             content: Text(
-              "You are already on the latest version (current: ${Constants.version}, found: ${release.tagName}${release.prerelease ? " (prerelease)" : ""})",
+              "You are already on the latest version (current: ${Constants.updateCheckVersion}, found: ${release.tagName}${release.prerelease ? " (prerelease)" : ""})",
             ),
             action: SnackBarAction(
               label: "I don't believe you (show update prompt)",

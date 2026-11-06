@@ -55,7 +55,7 @@ class SelfUpdater extends AsyncNotifier<TriOSDownloadProgress?> {
 
   static bool hasNewVersion(
     Release latestRelease, {
-    String currentVersion = Constants.version,
+    String currentVersion = Constants.updateCheckVersion,
   }) {
     try {
       final latestVersion = Version.parse(latestRelease.tagName);
